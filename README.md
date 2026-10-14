@@ -159,6 +159,12 @@ The iPhone and iPad app:
    Mac. The first time, a Sill for Mac built from this repository asks you to
    pair: scan the code it shows, or connect the device with a USB cable.
 
+**Sill Mac Client** shows a Mac's windows on another Mac, as a device to Sill
+for Mac like an iPhone or iPad: `Scripts/make-client-app.sh --install --open`.
+[docs/mac-client.md](docs/mac-client.md) has the setup (a Mac mini as the host,
+a MacBook Pro as the client, at home and through Tailscale) and what it does so
+far.
+
 [docs/DEVELOPMENT.md](docs/DEVELOPMENT.md) has the rest: every command-line
 flag, the test tools and the simulator harness, permissions and how to reset
 them, Remote Access, troubleshooting and releases.
