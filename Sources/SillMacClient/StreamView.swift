@@ -9,8 +9,9 @@ import SwiftUI
 /// shape of the Mac's cursor (kind 14), since the Mac leaves its pointer out of the video.
 ///
 /// Keys go to the Mac while this view is the first responder of the key window: ⌘ shortcuts too,
-/// except those with ⌃⌥⌘ held together, which stay this app's (Disconnect is ⌃⌥⌘D). macOS keeps a
-/// few for itself before any app sees them (⌘Tab, ⌘Space when Spotlight has it, Mission Control's).
+/// except those with ⌃⌥⌘ held together, which stay this app's (Disconnect is ⌃⌥⌘D). The ones macOS
+/// keeps for itself (⌘Tab, Spotlight, Mission Control, Spaces, screenshots) go too while
+/// SystemShortcuts captures them (Accessibility granted, and Send System Shortcuts on).
 final class StreamNSView: NSView {
     let sink = DisplayLayerSink()
     weak var session: StreamSession?
@@ -22,6 +23,7 @@ final class StreamNSView: NSView {
     private var cursorWatch: AnyCancellable?
     private var frameSize: CGSize = .zero
     private var resignObserver: NSObjectProtocol?
+    private var focusObservers: [NSObjectProtocol] = []
 
     override init(frame: NSRect) {
         super.init(frame: frame)
@@ -77,10 +79,14 @@ final class StreamNSView: NSView {
             }
         }
         installKeyMonitor()
+        watchFocus()
         sendViewport()
     }
 
     override func removeFromSuperview() {
+        SystemShortcuts.shared.stop()
+        focusObservers.forEach(NotificationCenter.default.removeObserver)
+        focusObservers = []
         releaseKeys()
         if let keyMonitor { NSEvent.removeMonitor(keyMonitor) }
         keyMonitor = nil
@@ -90,8 +96,7 @@ final class StreamNSView: NSView {
     private func sendViewport() {
         guard let session, bounds.width > 0 else { return }
         let size = StreamGeometry.viewportSize(bounds.size)
-        let fps = window?.screen?.maximumFramesPerSecond ?? 60
-        session.setViewport(width: size.width, height: size.height, fps: fps)
+        session.setViewport(width: size.width, height: size.height, screenFPS: window?.screen?.maximumFramesPerSecond ?? 60)
     }
 
     private var picture: CGRect { StreamGeometry.pictureRect(frame: frameSize, in: bounds) }
@@ -234,7 +239,55 @@ final class StreamNSView: NSView {
 
     override func resignFirstResponder() -> Bool {
         releaseKeys()
+        defer { DispatchQueue.main.async { self.updateCapture() } }
         return super.resignFirstResponder()
+    }
+
+    override func becomeFirstResponder() -> Bool {
+        defer { DispatchQueue.main.async { self.updateCapture() } }
+        return super.becomeFirstResponder()
+    }
+
+    // MARK: The system's shortcuts
+
+    /// True while keys typed now are this view's: the app in front, its window key, this view its
+    /// first responder, a session to send them to.
+    private var hasKeyboard: Bool {
+        guard NSApp.isActive, let window, window.isKeyWindow, window.firstResponder === self, session != nil else { return false }
+        return true
+    }
+
+    /// The capture follows the keyboard: on while this view has it, off the moment it goes (another
+    /// app, another window, a field in the bar), so ⌘Tab and the rest are this Mac's again.
+    func updateCapture() {
+        let capture = SystemShortcuts.shared
+        if hasKeyboard, ClientPrefs.sendsSystemShortcuts {
+            capture.onKey = { [weak self] event in
+                guard let self, self.hasKeyboard else { return false }
+                self.route(event)
+                return true
+            }
+            capture.start()
+        } else if capture.capturing {
+            capture.stop()
+        }
+    }
+
+    private func watchFocus() {
+        focusObservers.forEach(NotificationCenter.default.removeObserver)
+        let nc = NotificationCenter.default
+        let names: [(Notification.Name, Any?)] = [
+            (NSApplication.didBecomeActiveNotification, nil), (NSApplication.didResignActiveNotification, nil),
+            (NSWindow.didBecomeKeyNotification, window), (NSWindow.didResignKeyNotification, window),
+            (ClientPrefs.changed, nil),
+        ]
+        focusObservers = names.map { name, object in
+            nc.addObserver(forName: name, object: object, queue: .main) { [weak self] _ in
+                self?.updateCapture()
+                if name == ClientPrefs.changed { self?.sendViewport() }
+            }
+        }
+        updateCapture()
     }
 }
 

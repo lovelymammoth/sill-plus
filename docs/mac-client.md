@@ -74,8 +74,18 @@ freely and goes full screen (⌃⌥⌘F).
 - **Keys**: while the picture has the keyboard, every key goes to the Mac mini, ⌘ shortcuts
   included (⌘C, ⌘W, ⌘Q act on the Mac mini). Plain keys go as the text they type on this Mac's
   keyboard layout, so layouts, dead keys and input methods follow the Mac you type on. ⌃⌥⌘ shortcuts
-  stay the client's: ⌃⌥⌘D disconnects, ⌃⌥⌘F full screen. macOS keeps a few for itself before any app
-  sees them (⌘Tab, ⌘Space if Spotlight has it, Mission Control's keys).
+  stay the client's: ⌃⌥⌘D disconnects, ⌃⌥⌘F full screen. With Accessibility granted to Sill Mac
+  Client and Session › Send System Shortcuts to the Mac on (the default), the ones macOS keeps for
+  itself go too while the picture has the keyboard: a keyboard event tap takes every key first, and
+  the system's symbolic hot keys (⌘`, screenshots, Mission Control, Spaces, Spotlight, ⌘Tab where
+  macOS lists them) are turned off for that time and back on the moment the app or the picture loses
+  the keyboard, at quit, on a signal, and at the next launch after a crash. Click another app or the
+  Dock to get this Mac's shortcuts back.
+- **Quality** (the bar's slider menu, from a Mac that sends kind 16): the Mac's Quality preset and
+  Resolution, as its own menu has them (away from home they set its away quality), and the frame
+  rate this client asks for: 60 fps by default; 120 on a ProMotion screen only when chosen, since
+  the bitrate is per 60 fps and doubles. When the Mac reports that the link can't keep up, a line
+  under the bar says so with the Mac's suggestion as a button.
 - **Disconnect** (⌃⌥⌘D, or the button) ends the session; the Mac mini stops capturing once no device
   is connected.
 

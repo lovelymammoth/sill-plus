@@ -18,7 +18,23 @@ if CommandLine.arguments.contains("--headless") {
     HeadlessCheck.run(Array(CommandLine.arguments.dropFirst()))   // never returns
 }
 
-final class ClientAppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
+// The system shortcuts a capture turned off come back on whatever ends this process: a crash or a
+// kill left them for this launch (SystemShortcuts.restoreLeftovers); a signal restores them here.
+SystemShortcuts.restoreLeftovers()
+var signalSources: [DispatchSourceSignal] = []
+for sig in [SIGTERM, SIGINT, SIGHUP] {
+    signal(sig, SIG_IGN)
+    let source = DispatchSource.makeSignalSource(signal: sig, queue: .main)
+    source.setEventHandler {
+        SystemShortcuts.shared.stop()
+        signal(sig, SIG_DFL)
+        kill(getpid(), sig)
+    }
+    source.resume()
+    signalSources.append(source)
+}
+
+final class ClientAppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, NSMenuItemValidation {
     let model = AppModel()
     var window: NSWindow?
 
@@ -41,10 +57,27 @@ final class ClientAppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate
     func applicationShouldTerminateAfterLastWindowClosed(_ sender: NSApplication) -> Bool { true }
 
     func applicationWillTerminate(_ notification: Notification) {
+        SystemShortcuts.shared.stop()
         model.session?.disconnect()
     }
 
+    func applicationDidResignActive(_ notification: Notification) {
+        SystemShortcuts.shared.stop()
+    }
+
     @objc func disconnect(_ sender: Any?) { model.endSession() }
+
+    @objc func toggleSystemShortcuts(_ sender: Any?) {
+        ClientPrefs.sendsSystemShortcuts.toggle()
+        if ClientPrefs.sendsSystemShortcuts, !SystemShortcuts.trusted { SystemShortcuts.askForAccess() }
+    }
+
+    func validateMenuItem(_ item: NSMenuItem) -> Bool {
+        if item.action == #selector(toggleSystemShortcuts(_:)) {
+            item.state = ClientPrefs.sendsSystemShortcuts ? .on : .off
+        }
+        return true
+    }
 }
 
 /// The app's menu bar: the standard App, Edit (for the address fields) and Window menus, and Session's
@@ -76,6 +109,10 @@ enum ClientMenu {
         let d = session.addItem(withTitle: "Disconnect", action: #selector(ClientAppDelegate.disconnect(_:)), keyEquivalent: "d")
         d.keyEquivalentModifierMask = [.control, .option, .command]
         d.target = delegate
+        session.addItem(.separator())
+        let keys = session.addItem(withTitle: "Send System Shortcuts to the Mac", action: #selector(ClientAppDelegate.toggleSystemShortcuts(_:)), keyEquivalent: "")
+        keys.target = delegate
+        keys.toolTip = "⌘Tab, Spotlight, Mission Control, Spaces and screenshots go to the Mac while the picture has the keyboard (needs Accessibility)"
         sessionItem.submenu = session
         main.addItem(sessionItem)
 

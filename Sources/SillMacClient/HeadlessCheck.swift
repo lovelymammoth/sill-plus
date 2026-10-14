@@ -52,7 +52,7 @@ enum HeadlessCheck {
             let sink = DecodingCounterSink()
             session.queue.sync { session.sink = sink }
             session.onEvent = { print("headless: session: \($0)") }
-            session.setViewport(width: 1280, height: 800, fps: 60)
+            session.setViewport(width: 1280, height: 800, screenFPS: 60)
             let target: StreamSession.Target = home && candidates.count == 1
                 ? .home(.hostPort(host: NWEndpoint.Host(candidates[0].host), port: NWEndpoint.Port(integerLiteral: UInt16(candidates[0].port))))
                 : .addresses(candidates)

@@ -56,6 +56,9 @@ final class StreamSession: ObservableObject {
     @Published private(set) var hostVersion: String?
     @Published private(set) var route = ""
     @Published private(set) var frameSize: CGSize = .zero
+    /// The Mac's streaming settings as it last told this connection (kind 16); nil from a Mac that
+    /// sends none, which then has no Quality menu here.
+    @Published private(set) var hostSettings: HostSettingsState?
 
     let macID: String
     private let pin: Data
@@ -359,6 +362,12 @@ final class StreamSession: ObservableObject {
             DispatchQueue.main.async { self.store?.refresh(self.macID, info: v.info, fingerprint: v.fingerprint) }
         case .goodbye:
             goodbye = Wire.decode(Goodbye.self, from: data) ?? Goodbye(reason: "")
+        case .hostSettings:
+            guard let state = Wire.decode(HostSettingsState.self, from: data) else { return }
+            if let link = state.link, link.isBehind {
+                onEvent?("link: behind at \(link.bitrate / 1_000_000) Mbps, carried \(link.carriedKbps.map { "\($0) kbps" } ?? "unmeasured")")
+            }
+            DispatchQueue.main.async { if self.hostSettings != state { self.hostSettings = state } }
         default:
             break   // ticks, settings, the Mac's pointer and menus, and kinds a newer host adds
         }
@@ -382,6 +391,19 @@ final class StreamSession: ObservableObject {
         c.send(content: m.serialized(), completion: .contentProcessed { _ in })
     }
 
+    /// One control's change to the Mac's settings (kind 17): absolute values, a token strictly
+    /// increasing for this process. The Mac answers with a kind 16 to this connection alone; a value
+    /// it refuses comes back unchanged. Only the Mac menu's own values are ever sent
+    /// (SettingsChoices), and only fields the Mac reported.
+    func changeSettings(_ change: HostSettingsChange) {
+        var c = change
+        StreamSession.settingsToken += 1
+        c.token = StreamSession.settingsToken
+        send(.changeSettings, Wire.encode(c))
+    }
+
+    private static var settingsToken = 0
+
     func select(_ source: StreamSource) {
         send(.selectSource, Wire.encode(source))
     }
@@ -395,8 +417,11 @@ final class StreamSession: ObservableObject {
     }
 
     /// The stream view's size (Viewport.swift) and this screen's rate. Sent again only when it changes.
-    func setViewport(width: Double, height: Double, fps: Int) {
-        let v = Viewport(width: width, height: height, scale: nil, localCursor: true, fps: fps)
+    ///
+    /// The rate asked for is 60 unless ClientPrefs.wantsFullRate (ProMotion's 120 doubles the
+    /// stream's bitrate and the Mac's encoding for little gain on a desktop).
+    func setViewport(width: Double, height: Double, screenFPS: Int) {
+        let v = Viewport(width: width, height: height, scale: nil, localCursor: true, fps: ClientPrefs.rate(screenFPS: screenFPS))
         queue.async {
             guard v != self.lastViewport else { return }
             self.lastViewport = v

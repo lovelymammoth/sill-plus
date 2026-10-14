@@ -173,9 +173,13 @@ struct SessionView: View {
     @ObservedObject var model: AppModel
     @ObservedObject var session: StreamSession
 
+    @State private var shortcutsNote = false
+
     var body: some View {
         VStack(spacing: 0) {
             bar
+            if let link = session.hostSettings?.link, link.isBehind { linkLine(link) }
+            if shortcutsNote { shortcutsLine }
             ZStack {
                 StreamViewRepresentable(session: session)
                 overlay
@@ -228,12 +232,53 @@ struct SessionView: View {
                 } label: { Image(systemName: "ellipsis.circle") }
                 .menuStyle(.borderlessButton).fixedSize()
             }
+            if let state = session.hostSettings { QualityMenu(session: session, state: state) }
             Spacer()
             Text(statsLine).font(.caption.monospacedDigit()).foregroundStyle(.secondary)
             Button("Disconnect") { model.endSession() }.keyboardShortcut("d", modifiers: [.control, .option, .command])
         }
         .padding(.horizontal, 10).padding(.vertical, 6)
         .background(.bar)
+        .onAppear { shortcutsNote = ClientPrefs.sendsSystemShortcuts && !SystemShortcuts.trusted }
+    }
+
+    /// The Mac says the link can't carry this quality (kind 16's link report).
+    private func linkLine(_ link: LinkReport) -> some View {
+        HStack(spacing: 8) {
+            Image(systemName: "exclamationmark.triangle.fill").foregroundStyle(.orange)
+            Text(linkWords(link)).font(.callout)
+            if let b = link.suggestedBitrate {
+                let scale = link.suggestedCaptureScale ?? session.hostSettings?.settings.captureScale ?? 1
+                Button("Use \(QualityPreset.shortTitle(bitrate: b, captureScale: scale))") {
+                    session.changeSettings(HostSettingsChange(bitrate: b, captureScale: link.suggestedCaptureScale))
+                }
+            }
+            Spacer()
+        }
+        .padding(.horizontal, 10).padding(.vertical, 4)
+        .background(.orange.opacity(0.12))
+    }
+
+    private func linkWords(_ link: LinkReport) -> String {
+        var words = "The link can't keep up with \(QualityPreset.name(forBitrate: link.bitrate))"
+        if let k = link.carriedKbps { words += String(format: " (it carried about %.1f Mbps)", Double(k) / 1000) }
+        return words + "."
+    }
+
+    private var shortcutsLine: some View {
+        HStack(spacing: 8) {
+            Image(systemName: "keyboard").foregroundStyle(.secondary)
+            Text("⌘Tab, Spotlight and Mission Control stay on this Mac until Sill Mac Client has Accessibility.").font(.callout)
+            Button("Allow…") { SystemShortcuts.askForAccess() }
+            Button("Not Now") { ClientPrefs.sendsSystemShortcuts = false; shortcutsNote = false }
+            Spacer()
+            Button { shortcutsNote = false } label: { Image(systemName: "xmark") }.buttonStyle(.borderless)
+        }
+        .padding(.horizontal, 10).padding(.vertical, 4)
+        .background(.quaternary.opacity(0.5))
+        .onReceive(NotificationCenter.default.publisher(for: NSApplication.didBecomeActiveNotification)) { _ in
+            if SystemShortcuts.trusted { shortcutsNote = false }
+        }
     }
 
     private var activeTitle: String {
@@ -252,5 +297,59 @@ struct SessionView: View {
         parts.append(String(format: "%.1f Mbps", s.mbps))
         if !session.route.isEmpty { parts.append(session.route) }
         return parts.joined(separator: " · ")
+    }
+}
+
+/// The Mac's streaming settings, as its own menu has them (kinds 16 and 17): Quality, Resolution and
+/// the frame rate. Away from home they set the Mac's away quality, which it keeps apart from home's.
+struct QualityMenu: View {
+    @ObservedObject var session: StreamSession
+    let state: HostSettingsState
+    @State private var fullRate = ClientPrefs.wantsFullRate
+
+    var body: some View {
+        Menu {
+            if state.away?.thisConnectionAway == true {
+                Text("Away from home: these set \(session.macName)'s away quality")
+            }
+            Section("Quality") {
+                ForEach(QualityPreset.allCases) { p in
+                    check(p.title, state.settings.bitrate == p.rawValue) { session.changeSettings(HostSettingsChange(bitrate: p.rawValue)) }
+                }
+            }
+            Section("Resolution") {
+                check("Retina", state.settings.captureScale >= 1.5) { session.changeSettings(HostSettingsChange(captureScale: 2)) }
+                check("Standard", state.settings.captureScale < 1.5) { session.changeSettings(HostSettingsChange(captureScale: 1)) }
+            }
+            Section("Frame Rate") {
+                check("60 fps", !fullRate) { setFullRate(false) }
+                check("120 fps (ProMotion, twice the bitrate)", fullRate) { setFullRate(true) }
+            }
+            if let s = state.stream {
+                Divider()
+                Text("Running: \(s.width)×\(s.height) · \(s.fps) fps · \(s.mbps) Mbps\(s.onVirtualDisplay ? " · virtual display" : "")")
+            }
+            if state.softwareEncoder {
+                Text("\(session.macName)'s hardware encoder is busy: up to 60 fps at Standard for now")
+            }
+        } label: {
+            Label(QualityPreset.shortTitle(bitrate: state.settings.bitrate, captureScale: state.settings.captureScale),
+                  systemImage: "slider.horizontal.3")
+        }
+        .fixedSize()
+        .help("The Mac's streaming quality")
+    }
+
+    private func check(_ title: String, _ on: Bool, _ action: @escaping () -> Void) -> some View {
+        Button(action: action) {
+            if on { Label(title, systemImage: "checkmark") } else { Text(title) }
+        }
+    }
+
+    /// 120 fps needs both ends: this client asking for it, and the Mac's limit at 120.
+    private func setFullRate(_ on: Bool) {
+        fullRate = on
+        ClientPrefs.wantsFullRate = on
+        if on, state.settings.maxFPS < 120 { session.changeSettings(HostSettingsChange(maxFPS: 120)) }
     }
 }
