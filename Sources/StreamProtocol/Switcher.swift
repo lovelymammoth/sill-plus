@@ -60,12 +60,19 @@ public struct WindowList: Codable {
     /// pull request #66's `Bool` (never released) does not decode here and becomes an Int as it
     /// rebases.
     public var clipboard: Int?
+    /// The host's own displays (never Sill's hidden ones), for a device that picks which the Desktop
+    /// is (kind 40); nil from a host that does not take kind 40, whose Desktop is its main display.
+    /// Pull request #66's field, same name and shape.
+    public var displays: [DisplayInfo]?
+    /// The display the Desktop shows now (one of `displays`).
+    public var desktopDisplay: UInt32?
 
     public init(macName: String, windows: [WindowInfo], active: StreamSource, launchID: String? = nil,
-                hostVersion: String? = nil, protocol: Int? = nil, gestures: Int? = nil, clipboard: Int? = nil) {
+                hostVersion: String? = nil, protocol: Int? = nil, gestures: Int? = nil, clipboard: Int? = nil,
+                displays: [DisplayInfo]? = nil, desktopDisplay: UInt32? = nil) {
         self.macName = macName; self.windows = windows; self.active = active; self.launchID = launchID
         self.hostVersion = hostVersion; self.protocol = `protocol`; self.gestures = gestures
-        self.clipboard = clipboard
+        self.clipboard = clipboard; self.displays = displays; self.desktopDisplay = desktopDisplay
     }
 }
 
@@ -123,4 +130,23 @@ public enum ImageBlob {
         guard let id = String(data: d.subdata(in: idStart..<(idStart + len)), encoding: .utf8) else { return nil }
         return (id, d.subdata(in: (idStart + len)..<d.endIndex))
     }
+}
+
+/// One of the host's own displays, as a device lists it to pick the Desktop (kind 40; pull request
+/// #66's type).
+public struct DisplayInfo: Codable, Hashable, Sendable {
+    public var id: UInt32
+    public var name: String
+    public var width: Double
+    public var height: Double
+    public var main: Bool?
+    public init(id: UInt32, name: String, width: Double, height: Double, main: Bool? = nil) {
+        self.id = id; self.name = name; self.width = width; self.height = height; self.main = main
+    }
+}
+
+/// Which of the host's displays the Desktop is (kind 40).
+public struct PickDisplay: Codable, Hashable, Sendable {
+    public var display: UInt32
+    public init(display: UInt32) { self.display = display }
 }

@@ -207,8 +207,20 @@ struct SessionView: View {
 
     private var bar: some View {
         HStack(spacing: 10) {
-            Button { session.select(.desktop) } label: { Label("Desktop", systemImage: "menubar.dock.rectangle") }
-                .help("Stream the Mac's whole desktop")
+            if session.displays.count > 1 {
+                // One button per monitor of the Mac (kind 40): the Desktop shows the one picked.
+                ForEach(Array(session.displays.enumerated()), id: \.element.id) { i, d in
+                    let on = session.active == .desktop && session.desktopDisplay == d.id
+                    Button { session.pickDisplay(d.id) } label: {
+                        Label(displayTitle(d, index: i), systemImage: on ? "display" : "display.2")
+                    }
+                    .buttonStyle(.bordered).tint(on ? .accentColor : nil)
+                    .help("Stream \(d.name) (\(Int(d.width))×\(Int(d.height)))")
+                }
+            } else {
+                Button { session.select(.desktop) } label: { Label("Desktop", systemImage: "menubar.dock.rectangle") }
+                    .help("Stream the Mac's whole desktop")
+            }
             Menu {
                 if session.windows.isEmpty { Text("No windows") }
                 ForEach(session.windows) { w in
@@ -234,6 +246,12 @@ struct SessionView: View {
             }
             if let state = session.hostSettings { QualityMenu(session: session, state: state) }
             Spacer()
+            if session.released {
+                Label("Control is on this Mac: click the picture or press fn‑Esc", systemImage: "hand.raised.fill")
+                    .font(.caption).foregroundStyle(.orange)
+            } else {
+                Text("fn‑Esc gives this Mac its keyboard and pointer back").font(.caption2).foregroundStyle(.tertiary)
+            }
             Text(statsLine).font(.caption.monospacedDigit()).foregroundStyle(.secondary)
             Button("Disconnect") { model.endSession() }.keyboardShortcut("d", modifiers: [.control, .option, .command])
         }
@@ -279,6 +297,12 @@ struct SessionView: View {
         .onReceive(NotificationCenter.default.publisher(for: NSApplication.didBecomeActiveNotification)) { _ in
             if SystemShortcuts.trusted { shortcutsNote = false }
         }
+    }
+
+    /// "Display 1 · LG HDR 4K": the number keeps two monitors of one model apart.
+    private func displayTitle(_ d: DisplayInfo, index: Int) -> String {
+        let n = "Display \(index + 1)"
+        return d.name.hasPrefix("Display ") ? n : "\(n) · \(d.name)"
     }
 
     private var activeTitle: String {

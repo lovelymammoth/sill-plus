@@ -115,16 +115,19 @@ final class StreamNSView: NSView {
     }
 
     override func resetCursorRects() {
-        addCursorRect(picture, cursor: session?.cursor ?? .arrow)
+        addCursorRect(picture, cursor: released ? .arrow : (session?.cursor ?? .arrow))
     }
 
     override func cursorUpdate(with event: NSEvent) {
         let p = convert(event.locationInWindow, from: nil)
-        (StreamGeometry.isOnPicture(p, picture: picture) ? (session?.cursor ?? .arrow) : .arrow).set()
+        (!released && StreamGeometry.isOnPicture(p, picture: picture) ? (session?.cursor ?? .arrow) : .arrow).set()
     }
 
+    /// fn-Esc gave this Mac its own input back (StreamSession.released).
+    private var released: Bool { session?.released ?? false }
+
     private func pointer(_ action: PointerAction, _ event: NSEvent) {
-        guard let f = fraction(event) else { return }
+        guard !released, let f = fraction(event) else { return }
         session?.input(.pointer(action, x: f.x, y: f.y))
     }
 
@@ -134,6 +137,7 @@ final class StreamNSView: NSView {
 
     override func mouseDown(with event: NSEvent) {
         window?.makeFirstResponder(self)
+        if released { setReleased(false); return }   // the click that takes control back goes nowhere
         holdClickModifiers(event)
         pointer(.leftDown, event)
     }
@@ -145,6 +149,7 @@ final class StreamNSView: NSView {
 
     override func rightMouseDown(with event: NSEvent) {
         window?.makeFirstResponder(self)
+        if released { setReleased(false); return }
         holdClickModifiers(event)
         pointer(.rightDown, event)
     }
@@ -173,7 +178,7 @@ final class StreamNSView: NSView {
     // MARK: Scrolling
 
     override func scrollWheel(with event: NSEvent) {
-        guard let f = fraction(event) else { return }
+        guard !released, let f = fraction(event) else { return }
         // A trackpad's gesture: its phases, so the Mac rubber-bands and coasts as with its own
         // trackpad (Input.swift's scrollGesture). This Mac makes the momentum itself and its deltas
         // go as they come, between momentumBegan and momentumEnded.
@@ -202,7 +207,13 @@ final class StreamNSView: NSView {
         if let keyMonitor { NSEvent.removeMonitor(keyMonitor) }
         keyMonitor = NSEvent.addLocalMonitorForEvents(matching: [.keyDown, .keyUp, .flagsChanged]) { [weak self] event in
             guard let self, let window = self.window, event.window === window, window.isKeyWindow,
-                  window.firstResponder === self, self.session != nil else { return event }
+                  self.session != nil else { return event }
+            // fn-Esc while released takes control back (the picture also takes it on a click).
+            if self.released {
+                if Self.isReleaseChord(event) { self.window?.makeFirstResponder(self); self.setReleased(false); return nil }
+                return event
+            }
+            guard window.firstResponder === self else { return event }
             if event.type == .keyDown,
                event.modifierFlags.intersection(.deviceIndependentFlagsMask).isSuperset(of: Self.localShortcut) {
                 return event   // ⌃⌥⌘: this app's own
@@ -212,8 +223,26 @@ final class StreamNSView: NSView {
         }
     }
 
+    /// fn-Esc (Globe-Esc): hand this Mac its keyboard, pointer and shortcuts back, or take them again.
+    static func isReleaseChord(_ event: NSEvent) -> Bool {
+        event.type == .keyDown && event.keyCode == 53 && event.modifierFlags.contains(.function)
+    }
+
+    /// Releases or takes control: every key and button the Mac holds for this view goes up first,
+    /// and the system's shortcuts are this Mac's again while released.
+    func setReleased(_ on: Bool) {
+        guard let session, session.released != on else { return }
+        releaseKeys()
+        session.released = on
+        window?.invalidateCursorRects(for: self)
+        (on ? NSCursor.arrow : (session.cursor ?? .arrow)).set()
+        // Not inside the tap's own callback, which fn-Esc arrives through while captured.
+        DispatchQueue.main.async { self.updateCapture() }
+    }
+
     private func route(_ event: NSEvent) {
         guard let session else { return }
+        if Self.isReleaseChord(event) { setReleased(true); return }
         let flags = UInt64(event.modifierFlags.intersection(.deviceIndependentFlagsMask).rawValue)
         switch event.type {
         case .keyDown:
@@ -253,7 +282,8 @@ final class StreamNSView: NSView {
     /// True while keys typed now are this view's: the app in front, its window key, this view its
     /// first responder, a session to send them to.
     private var hasKeyboard: Bool {
-        guard NSApp.isActive, let window, window.isKeyWindow, window.firstResponder === self, session != nil else { return false }
+        guard NSApp.isActive, let window, window.isKeyWindow, window.firstResponder === self, session != nil,
+              !released else { return false }
         return true
     }
 

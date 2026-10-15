@@ -75,6 +75,8 @@ public enum StreamMessageKind: UInt8 {
                              // on), its text becomes the Mac's clipboard, and `stop` ends the subscription; only
                              // to a host whose window list says `clipboard` 1 or more. Host → device: text copied
                              // on the Mac (or sent by another device), only to a connection that subscribed
+    case pickDisplay = 40    // device → host: JSON PickDisplay — which of the host's own displays the Desktop is;
+                             // only to a host whose window list carries `displays` (pull request #66's number and shape)
     case unknown = 255       // never sent: what parseHeader yields for a kind this build does not know
 }
 

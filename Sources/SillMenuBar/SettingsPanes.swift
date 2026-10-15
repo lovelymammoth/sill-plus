@@ -144,6 +144,11 @@ private struct GeneralPane: View {
             // The clipboard both ways (HostClipboard): at once, no restart. Each device has its own
             // switch too. macOS's answer is read with the permissions (once a second while this pane
             // shows, and when Sill becomes active), never in a preview.
+            Section {
+                Toggle("Hide this Mac’s screens while a device is connected", isOn: $settings.config.hideScreens)
+            } footer: {
+                Footnote("While an iPhone, iPad or Mac is connected, this Mac’s monitors go dark and its own keyboard and mouse do nothing, so nobody here sees or changes what you do. The device still sees everything. Both come back the moment the last device disconnects or Sill quits.")
+            }
             ClipboardSection(shareClipboard: $settings.config.shareClipboard,
                              access: previewClipboardAccess ?? model.permissions.clipboardAccess,
                              allow: { model.permissions.allowClipboard() })

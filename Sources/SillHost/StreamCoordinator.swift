@@ -251,6 +251,8 @@ package final class StreamCoordinator {
     /// subscribed, while Share clipboard with devices (`HostConfig.shareClipboard`) is on. Looks at
     /// nothing while nobody subscribes.
     let clipboard: HostClipboard
+    /// Hide this Mac's screens while a device is connected (HostCurtain, `HostConfig.hideScreens`).
+    let curtain: HostCurtain
     /// TEST ONLY. `SILL_TEST_MENU_PID=<pid>` on a --synthetic host: the test pattern's menus are that
     /// process's (the gates' fixture, Scripts/menufixture.swift), read and pressed through the same
     /// code, never activated (the Desktop's rule). Nil otherwise; `testMenuLine` is what `start`
@@ -312,6 +314,8 @@ package final class StreamCoordinator {
         launchID = launch
         // A synthetic host shares a pasteboard of its own, never this Mac's clipboard.
         clipboard = HostClipboard(server: server, enabled: config.shareClipboard, launchID: launch, synthetic: synthetic)
+        // A test host never darkens this Mac's screens nor takes its keyboard.
+        curtain = HostCurtain(enabled: config.hideScreens && !synthetic, canBlockInput: appKitLoop)
         let hook = Self.testMenuHook(synthetic: synthetic)
         testMenuPID = hook.pid
         testMenuLine = hook.line
@@ -411,6 +415,7 @@ package final class StreamCoordinator {
                 guard let self else { return }
                 let wasEmpty = self.catalog.clientCount == 0
                 self.catalog.clientCount = count          // the catalog idles itself at 0
+                self.curtain.update(devices: count)
                 // Nobody is watching: stop capturing and encoding. The next client picks afresh.
                 if count == 0 { self.viewport = nil; self.clientFPS = [:] }   // the next device starts from scratch
                 if count == 0 { self.gestureChords.forget() }                 // and did not open a view it could close
@@ -656,6 +661,7 @@ package final class StreamCoordinator {
         // Share clipboard with devices, at once rather than between pipelines: off must stop what goes
         // out now, not after a restart. The lists say `clipboard` again (or no longer).
         if clipboard.setEnabled(new.shareClipboard) { broadcastList() }
+        curtain.setEnabled(new.hideScreens && !synthetic, devices: catalog.clientCount)
         guard new != target else { return false }
         pendingConfig = new
         publishSettings()
@@ -1017,6 +1023,16 @@ package final class StreamCoordinator {
             // and answers this device alone. JSON that does not decode has no token to answer.
             guard let r = Wire.decode(FetchMenu.self, from: message.payload) else { return }
             menus.fetch(r, from: connection, who: deviceName(connection))
+        case .pickDisplay:
+            // Which of this Mac's displays the Desktop is (kind 40): kept for every later Desktop, and
+            // the Desktop restarted on it now if it streams.
+            guard let pick = Wire.decode(PickDisplay.self, from: message.payload),
+                  catalog.displays.contains(where: { $0.displayID == pick.display }) else { return }
+            guard catalog.preferredDisplayID != pick.display || catalog.display?.displayID != pick.display else { return }
+            catalog.preferredDisplayID = pick.display
+            await catalog.refreshWindows()
+            print("Desktop display from \(deviceName(connection)): \(Self.displayName(pick.display))")
+            if active == .desktop { await handlePick(.desktop) } else { broadcastList() }
         case .clipboard:
             // The clipboard (HostClipboard): a subscription, a device's text, or its stop. No `await`:
             // it reads and writes the pasteboard at once, and says nothing per copy.
@@ -1863,6 +1879,7 @@ package final class StreamCoordinator {
     /// dies of the signal with no goodbye, as before (`releaseKeysForExit`): its devices notice by
     /// liveness.
     package func shutdownForExit() {
+        curtain.releaseForQuit()
         injector.releaseAll()
         server.goodbyeAll(Goodbye(reason: Goodbye.quit), within: 0.1)
         shuttingDown = true
@@ -2253,10 +2270,30 @@ package final class StreamCoordinator {
         StreamMessage(kind: .windowList, timestamp: Date().timeIntervalSince1970, isKeyframe: false,
                       payload: Wire.encode(WindowList(macName: macName, windows: catalog.infos, active: active, launchID: launchID,
                                                       hostVersion: hostVersion, protocol: SillProtocol.current,
-                                                      gestures: TrackpadGesture.generation, clipboard: clipboard.advertised)))
+                                                      gestures: TrackpadGesture.generation, clipboard: clipboard.advertised,
+                                                      displays: displayInfos(), desktopDisplay: catalog.display?.displayID)))
     }
 
     private func broadcastList() { server.broadcast(listMessage()) }
+
+    /// This Mac's own displays for a device's picker (kind 40), nil on a synthetic host (its Desktop
+    /// is the test pattern).
+    private func displayInfos() -> [DisplayInfo]? {
+        guard !synthetic, !catalog.displays.isEmpty else { return nil }
+        return catalog.displays.map { d in
+            DisplayInfo(id: d.displayID, name: Self.displayName(d.displayID), width: Double(d.width), height: Double(d.height),
+                        main: d.displayID == CGMainDisplayID() ? true : nil)
+        }
+    }
+
+    /// A display's name as System Settings shows it ("LG HDR 4K"), else "Display N".
+    static func displayName(_ id: CGDirectDisplayID) -> String {
+        let key = NSDeviceDescriptionKey("NSScreenNumber")
+        if let screen = NSScreen.screens.first(where: { ($0.deviceDescription[key] as? NSNumber)?.uint32Value == id }) {
+            return screen.localizedName
+        }
+        return "Display \(id)"
+    }
 
     private func sendCatalog(to connection: NWConnection) {
         let now = Date().timeIntervalSince1970
