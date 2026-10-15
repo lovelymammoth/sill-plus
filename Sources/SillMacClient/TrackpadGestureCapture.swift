@@ -103,12 +103,16 @@ struct MacGestureRecognizer {
     }
 
     static func centroid(_ p: [CGPoint]) -> CGPoint {
+        var x: CGFloat = 0, y: CGFloat = 0
+        for q in p { x += q.x; y += q.y }
         let n = CGFloat(p.count)
-        return CGPoint(x: p.reduce(0) { $0 + $1.x } / n, y: p.reduce(0) { $0 + $1.y } / n)
+        return CGPoint(x: x / n, y: y / n)
     }
 
     static func spread(_ p: [CGPoint], around c: CGPoint) -> CGFloat {
-        p.reduce(0) { $0 + hypot($1.x - c.x, $1.y - c.y) } / CGFloat(p.count)
+        var total: CGFloat = 0
+        for q in p { total += hypot(q.x - c.x, q.y - c.y) }
+        return total / CGFloat(p.count)
     }
 }
 
