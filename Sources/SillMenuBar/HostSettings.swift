@@ -45,6 +45,7 @@ final class HostSettings {
         static let logShowsStats = "logShowsStats"
         static let updateCheck = "updateCheck"
         static let shareClipboard = "shareClipboard"
+        static let hideScreens = "hideScreens"
     }
 
     var config: HostConfig {
@@ -113,6 +114,9 @@ final class HostSettings {
             Key.updateCheck: true,
             // On, like the CLI: each device has its own switch, and a password manager's copies never go.
             Key.shareClipboard: standard.shareClipboard,
+            // On in this fork's Sill.app (the Mac client's "locked" host): the screens go dark and
+            // this Mac's own keyboard and mouse are ignored while a device is connected.
+            Key.hideScreens: true,
         ])
         config = HostConfig(maxFPS: defaults.integer(forKey: Key.maxFPS),
                             captureScale: CGFloat(defaults.double(forKey: Key.captureScale)),
@@ -130,6 +134,7 @@ final class HostSettings {
                             // the host starts, and to which the Devices pane saves it.
                             requirePairing: HostConfig.standard.requirePairing,
                             shareClipboard: defaults.bool(forKey: Key.shareClipboard)).validated()
+        config.hideScreens = defaults.bool(forKey: Key.hideScreens)
         remoteAddressName = defaults.string(forKey: Key.remoteAddressName) ?? ""
         updateCheck = defaults.bool(forKey: Key.updateCheck)
         settingsTab = defaults.string(forKey: Key.settingsTab).flatMap(SettingsTab.init(rawValue:)) ?? .general
@@ -154,6 +159,7 @@ final class HostSettings {
         if config.remotePort != old.remotePort { defaults.set(config.remotePort, forKey: Key.remotePort) }
         if config.internetAccess != old.internetAccess { defaults.set(config.internetAccess, forKey: Key.internetAccess) }
         if config.shareClipboard != old.shareClipboard { defaults.set(config.shareClipboard, forKey: Key.shareClipboard) }
+        if config.hideScreens != old.hideScreens { defaults.set(config.hideScreens, forKey: Key.hideScreens) }
     }
 
     // MARK: Remote devices seen (display only)

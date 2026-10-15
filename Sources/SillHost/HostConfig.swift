@@ -55,6 +55,10 @@ package struct HostConfig: Equatable, Sendable {
     /// HostSettingsChange, DeviceSettings.accepted, `applying` and `restartNeeded`, so no device turns
     /// it on. Applied at once (`StreamCoordinator.setTarget`), not between pipelines.
     package var shareClipboard: Bool
+    /// Hide this Mac's screens while a device is connected (HostCurtain): the monitors go dark and
+    /// this Mac's own keyboard and mouse are ignored until the last device leaves. The Mac's alone,
+    /// like Share clipboard; applied at once. Off in the CLI unless `--hide-screens`.
+    package var hideScreens: Bool = false
 
     /// Every knob is required, so the compiler finds each place that builds one when a knob is added.
     package init(maxFPS: Int, captureScale: CGFloat, bitrate: Int, awayBitrate: Int, awayCaptureScale: CGFloat,
@@ -129,6 +133,7 @@ package struct HostConfig: Equatable, Sendable {
         if internetAccess != new.internetAccess { parts.append("internet access \(onOff(internetAccess)) → \(onOff(new.internetAccess))") }
         if requirePairing != new.requirePairing { parts.append("require pairing \(onOff(requirePairing)) → \(onOff(new.requirePairing))") }
         if shareClipboard != new.shareClipboard { parts.append("share clipboard \(onOff(shareClipboard)) → \(onOff(new.shareClipboard))") }
+        if hideScreens != new.hideScreens { parts.append("hide screens \(onOff(hideScreens)) → \(onOff(new.hideScreens))") }
         return parts.isEmpty ? "no change" : parts.joined(separator: ", ")
     }
 

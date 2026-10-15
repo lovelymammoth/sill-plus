@@ -59,6 +59,13 @@ final class StreamSession: ObservableObject {
     /// The Mac's streaming settings as it last told this connection (kind 16); nil from a Mac that
     /// sends none, which then has no Quality menu here.
     @Published private(set) var hostSettings: HostSettingsState?
+    /// The Mac's own displays (kind 40's list) and the one its Desktop shows; empty from a Mac that
+    /// takes no kind 40 (Sill.app from Noah's releases), whose Desktop is its main display.
+    @Published private(set) var displays: [DisplayInfo] = []
+    @Published private(set) var desktopDisplay: UInt32?
+    /// fn-Esc: this Mac's keyboard, pointer and scrolling stay here until the picture is clicked or
+    /// fn-Esc comes again (StreamNSView). Nothing goes to the Mac meanwhile.
+    @Published var released = false
 
     let macID: String
     private let pin: Data
@@ -326,6 +333,8 @@ final class StreamSession: ObservableObject {
                 if !list.macName.isEmpty { self.macName = list.macName }
                 self.windows = list.windows
                 self.active = list.active
+                self.displays = list.displays ?? []
+                self.desktopDisplay = list.desktopDisplay
                 let live = Set(list.windows.map(\.id))
                 self.thumbnails = self.thumbnails.filter { live.contains($0.key) }
                 // Start on the Desktop, never an empty window, as the iOS client does; at most every
@@ -403,6 +412,14 @@ final class StreamSession: ObservableObject {
     }
 
     private static var settingsToken = 0
+
+    /// Shows `display` as the Desktop (kind 40, only to a Mac that lists its displays), and the
+    /// Desktop if something else streams.
+    func pickDisplay(_ display: UInt32) {
+        guard displays.contains(where: { $0.id == display }) else { return }
+        send(.pickDisplay, Wire.encode(PickDisplay(display: display)))
+        if active != .desktop { select(.desktop) }
+    }
 
     func select(_ source: StreamSource) {
         send(.selectSource, Wire.encode(source))

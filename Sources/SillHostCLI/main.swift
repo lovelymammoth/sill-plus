@@ -39,6 +39,7 @@ config.directWireless = CommandLine.arguments.contains("--direct-wireless")
 // sent the text copied on this Mac while it is connected, and its own text becomes this Mac's.
 // A --synthetic host shares a pasteboard of its own, never this Mac's clipboard.
 config.shareClipboard = !CommandLine.arguments.contains("--no-clipboard")
+config.hideScreens = CommandLine.arguments.contains("--hide-screens")   // HostCurtain; the keyboard and mouse only with --virtual-display (the AppKit loop)
 
 // `SillHost --remote[=PORT]`: the remote door for this run (TLS 1.3, paired devices only), on
 // PORT or any free port, so it never collides with Sill.app's 7455. A new in-memory identity and
