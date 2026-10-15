@@ -134,7 +134,8 @@ private func curtainTapCallback(proxy: CGEventTapProxy, type: CGEventType, event
         if let port = curtainTapPort { CGEvent.tapEnable(tap: port, enable: true) }
         return Unmanaged.passUnretained(event)
     }
-    if event.getIntegerValueField(.eventSourceUnixProcessID) == curtainOwnPID {
+    if event.getIntegerValueField(.eventSourceUserData) == sillDeviceEventMark
+        || event.getIntegerValueField(.eventSourceUnixProcessID) == curtainOwnPID {
         return Unmanaged.passUnretained(event)
     }
     return nil

@@ -122,6 +122,10 @@ final class InputInjector {
             Stats.shared.bump("in.dry")
             return false
         }
+        // Marked as a device's (HostCurtain lets through only marked events while it hides this Mac's
+        // screens): posted at the HID tap, an event no longer names this process when the session
+        // tap sees it, so the process ID cannot tell it apart from this Mac's own keyboard.
+        event.setIntegerValueField(.eventSourceUserData, value: sillDeviceEventMark)
         event.post(tap: .cghidEventTap)
         return true
     }
@@ -634,3 +638,7 @@ final class InputInjector {
         return name.isEmpty ? fallback : "\"\(name)\""
     }
 }
+
+/// The `eventSourceUserData` on every event Sill posts for a device ("SILLDEV" in ASCII); read by
+/// HostCurtain's tap, off the main actor.
+let sillDeviceEventMark: Int64 = 0x53494C4C444556
