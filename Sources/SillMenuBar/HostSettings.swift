@@ -46,6 +46,7 @@ final class HostSettings {
         static let updateCheck = "updateCheck"
         static let shareClipboard = "shareClipboard"
         static let hideScreens = "hideScreens"
+        static let lockOnLeave = "lockOnLeave"
     }
 
     var config: HostConfig {
@@ -117,6 +118,7 @@ final class HostSettings {
             // On in this fork's Sill.app (the Mac client's "locked" host): the screens go dark and
             // this Mac's own keyboard and mouse are ignored while a device is connected.
             Key.hideScreens: true,
+            Key.lockOnLeave: true,
         ])
         config = HostConfig(maxFPS: defaults.integer(forKey: Key.maxFPS),
                             captureScale: CGFloat(defaults.double(forKey: Key.captureScale)),
@@ -142,6 +144,7 @@ final class HostSettings {
         askedAccessibility = defaults.bool(forKey: Key.askedAccessibility)
         logShowsStats = defaults.bool(forKey: Key.logShowsStats)
         config.hideScreens = defaults.bool(forKey: Key.hideScreens)   // every property set first; didSet does not run in init
+        config.lockOnLeave = defaults.bool(forKey: Key.lockOnLeave)
     }
 
     /// Writes only the keys that changed, so a launch-argument override of another key is not
@@ -160,6 +163,7 @@ final class HostSettings {
         if config.internetAccess != old.internetAccess { defaults.set(config.internetAccess, forKey: Key.internetAccess) }
         if config.shareClipboard != old.shareClipboard { defaults.set(config.shareClipboard, forKey: Key.shareClipboard) }
         if config.hideScreens != old.hideScreens { defaults.set(config.hideScreens, forKey: Key.hideScreens) }
+        if config.lockOnLeave != old.lockOnLeave { defaults.set(config.lockOnLeave, forKey: Key.lockOnLeave) }
     }
 
     // MARK: Remote devices seen (display only)

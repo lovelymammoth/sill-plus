@@ -316,6 +316,7 @@ package final class StreamCoordinator {
         clipboard = HostClipboard(server: server, enabled: config.shareClipboard, launchID: launch, synthetic: synthetic)
         // A test host never darkens this Mac's screens nor takes its keyboard.
         curtain = HostCurtain(enabled: config.hideScreens && !synthetic, canBlockInput: appKitLoop)
+        curtain.lockOnLeave = config.lockOnLeave && !synthetic
         let hook = Self.testMenuHook(synthetic: synthetic)
         testMenuPID = hook.pid
         testMenuLine = hook.line
@@ -661,6 +662,7 @@ package final class StreamCoordinator {
         // Share clipboard with devices, at once rather than between pipelines: off must stop what goes
         // out now, not after a restart. The lists say `clipboard` again (or no longer).
         if clipboard.setEnabled(new.shareClipboard) { broadcastList() }
+        curtain.lockOnLeave = new.lockOnLeave && !synthetic
         curtain.setEnabled(new.hideScreens && !synthetic, devices: catalog.clientCount)
         guard new != target else { return false }
         pendingConfig = new

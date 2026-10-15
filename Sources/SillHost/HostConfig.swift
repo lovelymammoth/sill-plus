@@ -59,6 +59,10 @@ package struct HostConfig: Equatable, Sendable {
     /// this Mac's own keyboard and mouse are ignored until the last device leaves. The Mac's alone,
     /// like Share clipboard; applied at once. Off in the CLI unless `--hide-screens`.
     package var hideScreens: Bool = false
+    /// With hideScreens: lock this Mac when the last device has been gone `HostCurtain.lockGrace`
+    /// seconds, before its screens come back, so a dropped session never leaves the Mac unlocked
+    /// for whoever is in the room. Off in the CLI unless `--lock-on-leave`.
+    package var lockOnLeave: Bool = false
 
     /// Every knob is required, so the compiler finds each place that builds one when a knob is added.
     package init(maxFPS: Int, captureScale: CGFloat, bitrate: Int, awayBitrate: Int, awayCaptureScale: CGFloat,
@@ -134,6 +138,7 @@ package struct HostConfig: Equatable, Sendable {
         if requirePairing != new.requirePairing { parts.append("require pairing \(onOff(requirePairing)) → \(onOff(new.requirePairing))") }
         if shareClipboard != new.shareClipboard { parts.append("share clipboard \(onOff(shareClipboard)) → \(onOff(new.shareClipboard))") }
         if hideScreens != new.hideScreens { parts.append("hide screens \(onOff(hideScreens)) → \(onOff(new.hideScreens))") }
+        if lockOnLeave != new.lockOnLeave { parts.append("lock on leave \(onOff(lockOnLeave)) → \(onOff(new.lockOnLeave))") }
         return parts.isEmpty ? "no change" : parts.joined(separator: ", ")
     }
 

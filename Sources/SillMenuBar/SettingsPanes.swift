@@ -146,8 +146,10 @@ private struct GeneralPane: View {
             // shows, and when Sill becomes active), never in a preview.
             Section {
                 Toggle("Hide this Mac’s screens while a device is connected", isOn: $settings.config.hideScreens)
+                Toggle("Lock this Mac when the last device disconnects", isOn: $settings.config.lockOnLeave)
+                    .disabled(!settings.config.hideScreens)
             } footer: {
-                Footnote("While an iPhone, iPad or Mac is connected, this Mac’s monitors go dark and its own keyboard and mouse do nothing, so nobody here sees or changes what you do. The device still sees everything. Both come back the moment the last device disconnects or Sill quits.")
+                Footnote("While an iPhone, iPad or Mac is connected, this Mac’s monitors go dark and its own keyboard and mouse do nothing, so nobody here sees or changes what you do. The device still sees everything. When the last device disconnects, this Mac locks after \(Int(HostCurtain.lockGrace)) seconds, before its screens come back; a device that reconnects sooner finds it as it left it. With locking off, the screens come back unlocked.")
             }
             ClipboardSection(shareClipboard: $settings.config.shareClipboard,
                              access: previewClipboardAccess ?? model.permissions.clipboardAccess,

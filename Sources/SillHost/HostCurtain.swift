@@ -19,10 +19,28 @@ import Foundation
 ///   device's input, which InputInjector posts from this process, passes. Needs Accessibility, which
 ///   Sill already has for input; without it only the screens go dark. The tap goes with the process.
 ///
-/// Off the moment the last device leaves, the setting goes off, or Sill quits.
+/// Off the moment the last device leaves, the setting goes off, or Sill quits; with `lockOnLeave`,
+/// the last device's leaving instead keeps everything dark for `lockGrace` seconds (a device that
+/// comes back meanwhile finds the Mac as it left it), then locks the Mac and only then shows the
+/// screens, so a dropped session never leaves an unlocked Mac for whoever is in the room. Sill
+/// quitting while hidden locks at once. Turning the setting off from a device shows the screens
+/// unlocked: that is the device's own choice.
+///
+/// A locked Mac cannot be unlocked through Sill (measured 2026-10-15 on the Mac mini, macOS 27.0.1):
+/// while the session is locked ScreenCaptureKit finds nothing to capture (SCStreamError -3815,
+/// "Failed to find any displays or windows to capture"), so a device sees no picture and sends no
+/// input. Unlock it at the Mac, or remotely with macOS Screen Sharing (which shows the lock
+/// screen), and Sill streams again.
 @MainActor
-final class HostCurtain {
+package final class HostCurtain {
+    /// How long a Mac stays dark and ignores its own input after the last device leaves, before it
+    /// locks and shows its screens.
+    package static let lockGrace: TimeInterval = 10
     private(set) var engaged = false
+    /// HostConfig.lockOnLeave.
+    var lockOnLeave = false
+    private var lockTask: Task<Void, Never>?
+    private var devices = 0
     private var enabled: Bool
     private var tap: CFMachPort?
     private var tapSource: CFRunLoopSource?
@@ -40,13 +58,84 @@ final class HostCurtain {
     func setEnabled(_ on: Bool, devices: Int) {
         guard on != enabled else { return }
         enabled = on
+        if !on { cancelLock() }
         update(devices: devices)
     }
 
     /// The number of connected devices changed.
     func update(devices: Int) {
+        self.devices = devices
+        if devices > 0, lockTask != nil {
+            cancelLock()
+            print("A device is back before the lock: this Mac stays hidden, and unlocked.")
+        }
         let want = enabled && devices > 0
-        if want && !engaged { engage() } else if !want && engaged { release() }
+        if want && !engaged { engage(); return }
+        guard !want, engaged else { return }
+        if enabled && lockOnLeave {
+            guard lockTask == nil else { return }
+            print("Last device left: this Mac locks in \(Int(Self.lockGrace)) s unless one reconnects; its screens stay dark until then.")
+            lockTask = Task { @MainActor [weak self] in
+                try? await Task.sleep(nanoseconds: UInt64(Self.lockGrace * 1_000_000_000))
+                guard let self, !Task.isCancelled, self.lockTask != nil else { return }
+                self.lockTask = nil
+                await self.lockThenRelease()
+            }
+        } else {
+            release()
+        }
+    }
+
+    private func cancelLock() {
+        lockTask?.cancel()
+        lockTask = nil
+    }
+
+    /// Locks the Mac, waits (up to 3 s) until the session reads locked, then shows the screens.
+    /// A lock that never takes still shows them, with a line saying so: a Mac left dark with its
+    /// own input ignored and nobody connected would be stuck for whoever is at it.
+    private func lockThenRelease() async {
+        let how = Self.lockScreen()
+        var locked = false
+        for _ in 0..<30 {
+            if Self.sessionLocked() { locked = true; break }
+            try? await Task.sleep(nanoseconds: 100_000_000)
+        }
+        // A device that connected while the lock was taking keeps the screens hidden (locked now).
+        guard engaged, devices == 0 else { return }
+        if locked {
+            try? await Task.sleep(nanoseconds: 300_000_000)   // the lock screen drawn before the gamma comes back
+            print("Locked this Mac (\(how)): no device for \(Int(Self.lockGrace)) s.")
+        } else {
+            print("Could not lock this Mac (\(how); the session never read locked); its screens are shown anyway.")
+        }
+        release()
+    }
+
+    /// The session's own lock (login.framework's SACLockScreenImmediate, what the Lock Screen menu
+    /// item calls); without it, the Lock Screen shortcut ⌃⌘Q posted from this process (which the
+    /// tap lets through).
+    private static func lockScreen() -> String {
+        typealias Lock = @convention(c) () -> Int32
+        if let h = dlopen("/System/Library/PrivateFrameworks/login.framework/Versions/Current/login", RTLD_LAZY),
+           let sym = dlsym(h, "SACLockScreenImmediate") {
+            let r = unsafeBitCast(sym, to: Lock.self)()
+            return "SACLockScreenImmediate \(r)"
+        }
+        let src = CGEventSource(stateID: .hidSystemState)
+        for down in [true, false] {
+            guard let e = CGEvent(keyboardEventSource: src, virtualKey: 12, keyDown: down) else { continue }   // Q
+            e.flags = [.maskControl, .maskCommand]
+            e.setIntegerValueField(.eventSourceUserData, value: sillDeviceEventMark)
+            e.post(tap: .cghidEventTap)
+        }
+        return "the Lock Screen shortcut"
+    }
+
+    static func sessionLocked() -> Bool {
+        guard let d = CGSessionCopyCurrentDictionary() as? [String: Any] else { return false }
+        if let b = d["CGSSessionScreenIsLocked"] as? Bool { return b }
+        return (d["CGSSessionScreenIsLocked"] as? Int) == 1
     }
 
     private func engage() {
@@ -71,9 +160,18 @@ final class HostCurtain {
         print("Screens shown again: no device connected.")
     }
 
-    /// Sill quitting: everything back now rather than at the process's end.
+    /// Sill quitting: everything back now rather than at the process's end, locked first when
+    /// locking is on (whether a device is still connected or the grace is running).
     func releaseForQuit() {
-        if engaged { release() }
+        cancelLock()
+        guard engaged else { return }
+        if enabled && lockOnLeave {
+            let how = Self.lockScreen()
+            let deadline = Date().addingTimeInterval(2)
+            while !Self.sessionLocked() && Date() < deadline { usleep(50_000) }
+            print(Self.sessionLocked() ? "Locked this Mac (\(how)): Sill is quitting." : "Could not lock this Mac as Sill quit (\(how)).")
+        }
+        release()
     }
 
     fileprivate static weak var current: HostCurtain?
