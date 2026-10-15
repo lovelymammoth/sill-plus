@@ -25,6 +25,7 @@ final class SavedMacStore {
         } else {
             let base = FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask).first
                 ?? URL(fileURLWithPath: NSHomeDirectory()).appendingPathComponent("Library/Application Support")
+            // "Sill Mac Client": the app's name before Sill Viewer, kept so saved Macs stay.
             file = base.appendingPathComponent("Sill Mac Client").appendingPathComponent("saved-macs.json")
             allowLoopback = false
         }

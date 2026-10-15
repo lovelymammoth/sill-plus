@@ -1,8 +1,8 @@
 #!/bin/bash
-# Builds "Sill Mac Client.app", the Mac client (docs/mac-client.md), from this SwiftPM package.
+# Builds "Sill Viewer.app", the Mac client (docs/mac-client.md), from this SwiftPM package.
 #
-#   Scripts/make-client-app.sh                    .build/Sill Mac Client.app, signed with your Apple Development identity
-#   Scripts/make-client-app.sh --install          …then replace /Applications/Sill Mac Client.app
+#   Scripts/make-client-app.sh                    .build/Sill Viewer.app, signed with your Apple Development identity
+#   Scripts/make-client-app.sh --install          …then replace /Applications/Sill Viewer.app
 #   Scripts/make-client-app.sh --install --open   …and launch it
 #   SILL_CLIENT_BUNDLE_ID=com.example.sill.client Scripts/make-client-app.sh   another bundle identifier
 #   SILL_INSTALL_DIR=~/Applications Scripts/make-client-app.sh --install        another install folder
@@ -27,8 +27,8 @@ done
 
 swift build -c release --product SillMacClient
 bin="$(swift build -c release --product SillMacClient --show-bin-path)"
-app=".build/Sill Mac Client.app"
-stage=".build/Sill Mac Client.app.partial"
+app=".build/Sill Viewer.app"
+stage=".build/Sill Viewer.app.partial"
 rm -rf "$stage"
 mkdir -p "$stage/Contents/MacOS" "$stage/Contents/Resources"
 # The SDK in use recorded in the executable, as make-app.sh does for Sill.app: SwiftPM records the
@@ -62,7 +62,7 @@ mv "$stage" "$app"
 echo "Built $app ($(/usr/libexec/PlistBuddy -c 'Print :CFBundleIdentifier' "$app/Contents/Info.plist"), signed by ${identity})"
 
 if [ "$install" = 1 ]; then
-    dest="${SILL_INSTALL_DIR:-/Applications}/Sill Mac Client.app"
+    dest="${SILL_INSTALL_DIR:-/Applications}/Sill Viewer.app"
     pkill -x SillMacClient 2>/dev/null || true
     rm -rf "$dest"
     ditto "$app" "$dest"

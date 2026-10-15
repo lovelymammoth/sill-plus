@@ -286,7 +286,7 @@ struct SessionView: View {
     private var shortcutsLine: some View {
         HStack(spacing: 8) {
             Image(systemName: "keyboard").foregroundStyle(.secondary)
-            Text("⌘Tab, Spotlight and Mission Control stay on this Mac until Sill Mac Client has Accessibility.").font(.callout)
+            Text("⌘Tab, Spotlight and Mission Control stay on this Mac until Sill Viewer has Accessibility.").font(.callout)
             Button("Allow…") { SystemShortcuts.askForAccess() }
             Button("Not Now") { ClientPrefs.sendsSystemShortcuts = false; shortcutsNote = false }
             Spacer()

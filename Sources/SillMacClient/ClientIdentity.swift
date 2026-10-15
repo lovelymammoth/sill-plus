@@ -16,6 +16,8 @@ import StreamProtocol
 /// - `SILL_CLIENT_IDENTITY_DIR=<dir>` (TEST ONLY): a 0600 file `client-key` in that 0700 folder, for
 ///   headless tests that must never touch the keychain.
 enum ClientIdentity {
+    /// The app was called Sill Mac Client until 0.5.1-plus.1; the key keeps that service name, so a
+    /// Mac paired before the rename stays paired.
     static let service = "Sill Mac Client"
     static let account = "device-key"
     static let testDirectoryVariable = "SILL_CLIENT_IDENTITY_DIR"

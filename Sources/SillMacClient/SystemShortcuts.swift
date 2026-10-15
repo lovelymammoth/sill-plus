@@ -2,7 +2,7 @@ import AppKit
 import ApplicationServices
 import Foundation
 
-/// This client's own preferences (UserDefaults, domain me.saffer.sill.macclient).
+/// This client's own preferences (UserDefaults, domain com.lovelymammoth.sill.viewer).
 enum ClientPrefs {
     private static let d = UserDefaults.standard
     /// Posted on the main thread after a preference changes.

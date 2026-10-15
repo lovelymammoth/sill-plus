@@ -4,7 +4,7 @@ import Network
 import StreamProtocol
 import SwiftUI
 
-// Sill Mac Client: another Mac's windows and desktop on this Mac (docs/mac-client.md). The Mac being
+// Sill Viewer (built as SillMacClient): another Mac's windows and desktop on this Mac (docs/mac-client.md). The Mac being
 // shown runs Sill for Mac (Sill.app) as it does for an iPhone or iPad; this app is a device to it,
 // speaking the same wire (StreamProtocol), with the same pairing and pinned TLS.
 //
@@ -95,11 +95,11 @@ enum ClientMenu {
         let main = NSMenu()
         let appItem = NSMenuItem()
         let app = NSMenu()
-        app.addItem(withTitle: "About Sill Mac Client", action: #selector(NSApplication.orderFrontStandardAboutPanel(_:)), keyEquivalent: "")
+        app.addItem(withTitle: "About Sill Viewer", action: #selector(NSApplication.orderFrontStandardAboutPanel(_:)), keyEquivalent: "")
         app.addItem(.separator())
         app.addItem(withTitle: "Hide", action: #selector(NSApplication.hide(_:)), keyEquivalent: "h")
         app.addItem(.separator())
-        app.addItem(withTitle: "Quit Sill Mac Client", action: #selector(NSApplication.terminate(_:)), keyEquivalent: "q")
+        app.addItem(withTitle: "Quit Sill Viewer", action: #selector(NSApplication.terminate(_:)), keyEquivalent: "q")
         appItem.submenu = app
         main.addItem(appItem)
 

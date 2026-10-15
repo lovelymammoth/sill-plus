@@ -1,6 +1,6 @@
-# Sill Mac Client: a Mac's windows on another Mac
+# Sill Viewer: a Mac's windows on another Mac
 
-Sill Mac Client shows the windows or the whole desktop of a Mac running Sill for Mac (Sill.app) on
+Sill Viewer shows the windows or the whole desktop of a Mac running Sill for Mac (Sill.app) on
 another Mac, and sends that Mac its mouse, trackpad and keyboard. To Sill.app it is a device like an
 iPhone or iPad: it pairs the same way, with the same 12-digit code, over the same pinned TLS 1.3, on
 the same wire (`Sources/StreamProtocol`). Nothing changes on the host: Sill.app 0.4.0 or later serves
@@ -122,7 +122,7 @@ freely and goes full screen (⌃⌥⌘F).
 - A session dials only pinned to the saved key; another key at a saved address ends the dial at once
   ("The Mac that answered isn't … (another key)"), and nothing of this Mac's is sent to it.
 - A kind 18 (addresses for afar) is taken only when signed by the pinned key.
-- This Mac's key lives in the login keychain (service "Sill Mac Client", account "device-key"), as
+- This Mac's key lives in the login keychain (service "Sill Mac Client", the name before Sill Viewer, account "device-key"), as
   Sill.app's own unentitled builds keep theirs; the data-protection keychain would need a provisioning
   profile this SwiftPM build does not have (docs/keychain-plan.md). Removing the item makes this Mac a
   new device to every Mac (pair again). Saved Macs: `~/Library/Application Support/Sill Mac

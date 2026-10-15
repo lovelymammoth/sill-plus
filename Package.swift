@@ -11,7 +11,7 @@ let package = Package(
         .executable(name: "SillHost", targets: ["SillHostCLI"]),
         // Sill.app's executable. Scripts/make-app.sh wraps it into the bundle and signs it.
         .executable(name: "SillMenuBar", targets: ["SillMenuBar"]),
-        // Sill Mac Client: another Mac's windows on this Mac, a device to Sill.app as an iPhone or
+        // Sill Viewer (SillMacClient): another Mac's windows on this Mac, a device to Sill.app as an iPhone or
         // iPad is (docs/mac-client.md). Scripts/make-client-app.sh wraps it into a bundle.
         .executable(name: "SillMacClient", targets: ["SillMacClient"]),
         // No product for SillHostCore: the iOS project links this package and must never see it.

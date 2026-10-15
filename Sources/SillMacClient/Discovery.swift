@@ -37,7 +37,7 @@ final class Discovery: ObservableObject {
                 switch state {
                 case .waiting(let e), .failed(let e):
                     if case .dns(let code) = e, code == RemoteDialPolicy.dnsPolicyDenied {
-                        self?.problem = "To find Macs on your network, allow Local Network for Sill Mac Client in System Settings › Privacy & Security."
+                        self?.problem = "To find Macs on your network, allow Local Network for Sill Viewer in System Settings › Privacy & Security."
                     } else {
                         self?.problem = "Looking for Macs failed (\(e))."
                     }
