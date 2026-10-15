@@ -72,9 +72,17 @@ final class ClientAppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate
         if ClientPrefs.sendsSystemShortcuts, !SystemShortcuts.trusted { SystemShortcuts.askForAccess() }
     }
 
+    @objc func toggleTrackpadGestures(_ sender: Any?) {
+        ClientPrefs.sendsTrackpadGestures.toggle()
+        if ClientPrefs.sendsTrackpadGestures, !SystemShortcuts.trusted { SystemShortcuts.askForAccess() }
+    }
+
     func validateMenuItem(_ item: NSMenuItem) -> Bool {
         if item.action == #selector(toggleSystemShortcuts(_:)) {
             item.state = ClientPrefs.sendsSystemShortcuts ? .on : .off
+        }
+        if item.action == #selector(toggleTrackpadGestures(_:)) {
+            item.state = ClientPrefs.sendsTrackpadGestures ? .on : .off
         }
         return true
     }
@@ -113,6 +121,9 @@ enum ClientMenu {
         let keys = session.addItem(withTitle: "Send System Shortcuts to the Mac", action: #selector(ClientAppDelegate.toggleSystemShortcuts(_:)), keyEquivalent: "")
         keys.target = delegate
         keys.toolTip = "⌘Tab, Spotlight, Mission Control, Spaces and screenshots go to the Mac while the picture has the keyboard (needs Accessibility)"
+        let swipes = session.addItem(withTitle: "Send Trackpad Gestures to the Mac", action: #selector(ClientAppDelegate.toggleTrackpadGestures(_:)), keyEquivalent: "")
+        swipes.target = delegate
+        swipes.toolTip = "Three- and four-finger swipes, pinch and spread go to the Mac while the picture has control (needs Accessibility)"
         sessionItem.submenu = session
         main.addItem(sessionItem)
 

@@ -16,7 +16,7 @@ protocol FrameSink: AnyObject {
 /// `sill/1`, this Mac's hello first, then the Mac's catalog and stream, and this Mac's picks, viewport
 /// and input, on the wire the iPhone and iPad app speaks (StreamMessage.swift). Kept to what a Mac
 /// client needs now: no moves between paths (a lost session ends, and the window offers to reconnect),
-/// no menus mirror (the Mac's menus are not mirrored yet), no gestures.
+/// no menus mirror (the Mac's menus are not mirrored yet); three- and four-finger gestures as kind 28.
 ///
 /// Published state on the main thread; the connection, the reader, pings, the frame sink and input
 /// on `queue`.
@@ -54,6 +54,8 @@ final class StreamSession: ObservableObject {
     @Published private(set) var cursor: NSCursor?
     @Published private(set) var stats = Stats()
     @Published private(set) var hostVersion: String?
+    /// `WindowList.gestures`: 1 or more when the Mac takes kind 28's trackpad gestures.
+    private(set) var hostGestures: Int?
     @Published private(set) var route = ""
     @Published private(set) var frameSize: CGSize = .zero
     /// The Mac's streaming settings as it last told this connection (kind 16); nil from a Mac that
@@ -330,6 +332,7 @@ final class StreamSession: ObservableObject {
                     self.store?.update(self.macID) { $0.lastConnectedAt = Date() }
                 }
                 self.hostVersion = list.hostVersion
+                self.hostGestures = list.gestures
                 if !list.macName.isEmpty { self.macName = list.macName }
                 self.windows = list.windows
                 self.active = list.active
@@ -419,6 +422,20 @@ final class StreamSession: ObservableObject {
         guard displays.contains(where: { $0.id == display }) else { return }
         send(.pickDisplay, Wire.encode(PickDisplay(display: display)))
         if active != .desktop { select(.desktop) }
+    }
+
+    /// A three- or four-finger gesture from this Mac's trackpad (main thread), as the iOS client
+    /// sends it: only to a Mac that takes gestures, and the Desktop first while a window streams, so
+    /// Mission Control and the rest show in the picture. False when nothing was sent.
+    func sendGesture(_ name: String, fingers: Int) -> Bool {
+        guard (hostGestures ?? 0) >= TrackpadGesture.generation else { return false }
+        if case .window = active { select(.desktop) }
+        let payload = Wire.encode(TrackpadGesture(gesture: name, fingers: fingers))
+        queue.async { [self] in
+            flushMove()
+            sendNow(.gesture, payload)
+        }
+        return true
     }
 
     func select(_ source: StreamSource) {

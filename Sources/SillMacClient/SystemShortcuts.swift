@@ -24,6 +24,14 @@ enum ClientPrefs {
         set { d.set(newValue, forKey: "sendsSystemShortcuts"); NotificationCenter.default.post(name: changed, object: nil) }
     }
 
+    /// Send three- and four-finger trackpad gestures (Mission Control, Spaces, App Exposé, Apps,
+    /// Show Desktop) to the Mac while the picture has the keyboard. On by default; it rides on the
+    /// same capture as the system shortcuts, so it needs Accessibility too.
+    static var sendsTrackpadGestures: Bool {
+        get { d.object(forKey: "sendsTrackpadGestures") as? Bool ?? true }
+        set { d.set(newValue, forKey: "sendsTrackpadGestures"); NotificationCenter.default.post(name: changed, object: nil) }
+    }
+
     /// The rate this client asks for on a screen that can show `screenFPS`.
     static func rate(screenFPS: Int) -> Int {
         let screen = max(1, screenFPS)
@@ -71,9 +79,13 @@ final class SystemShortcuts {
     @discardableResult
     func start() -> Bool {
         if capturing { return true }
-        guard ClientPrefs.sendsSystemShortcuts, Self.trusted else { return false }
+        guard ClientPrefs.sendsSystemShortcuts || ClientPrefs.sendsTrackpadGestures, Self.trusted else { return false }
         let types: [CGEventType] = [.keyDown, .keyUp, .flagsChanged]
-        let mask = types.reduce(CGEventMask(0)) { $0 | (CGEventMask(1) << CGEventMask($1.rawValue)) }
+        var mask = types.reduce(CGEventMask(0)) { $0 | (CGEventMask(1) << CGEventMask($1.rawValue)) }
+        // The trackpad's gestures (TrackpadGestureCapture): NSEvent's gesture events (29) and the
+        // Dock's control events (30), which have no CGEventType case.
+        mask |= CGEventMask(1) << CGEventMask(TrackpadGestureCapture.gestureType)
+        mask |= CGEventMask(1) << CGEventMask(TrackpadGestureCapture.dockControlType)
         guard let tap = CGEvent.tapCreate(tap: .cgSessionEventTap, place: .headInsertEventTap, options: .defaultTap,
                                           eventsOfInterest: mask, callback: tapCallback,
                                           userInfo: Unmanaged.passUnretained(self).toOpaque()) else {
@@ -83,7 +95,8 @@ final class SystemShortcuts {
         source = CFMachPortCreateRunLoopSource(nil, tap, 0)
         CFRunLoopAddSource(CFRunLoopGetMain(), source, .commonModes)
         CGEvent.tapEnable(tap: tap, enable: true)
-        HotKeys.disable()
+        if ClientPrefs.sendsSystemShortcuts { HotKeys.disable() }
+        TrackpadGestureCapture.shared.reset()
         capturing = true
         return true
     }
@@ -94,6 +107,7 @@ final class SystemShortcuts {
         if let source { CFRunLoopRemoveSource(CFRunLoopGetMain(), source, .commonModes) }
         tap = nil; source = nil
         HotKeys.restore()
+        TrackpadGestureCapture.shared.reset()
         capturing = false
     }
 
@@ -102,7 +116,12 @@ final class SystemShortcuts {
             if let tap { CGEvent.tapEnable(tap: tap, enable: true) }
             return Unmanaged.passUnretained(event)
         }
-        guard capturing, let ns = NSEvent(cgEvent: event) else { return Unmanaged.passUnretained(event) }
+        guard capturing else { return Unmanaged.passUnretained(event) }
+        let raw = type.rawValue
+        if raw == TrackpadGestureCapture.gestureType || raw == TrackpadGestureCapture.dockControlType {
+            return TrackpadGestureCapture.shared.handle(rawType: raw, event)
+        }
+        guard ClientPrefs.sendsSystemShortcuts, let ns = NSEvent(cgEvent: event) else { return Unmanaged.passUnretained(event) }
         if type == .keyDown, ns.modifierFlags.intersection(.deviceIndependentFlagsMask).isSuperset(of: [.control, .option, .command]) {
             return Unmanaged.passUnretained(event)   // ⌃⌥⌘: this app's own
         }

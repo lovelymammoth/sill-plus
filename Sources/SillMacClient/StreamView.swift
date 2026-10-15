@@ -291,11 +291,15 @@ final class StreamNSView: NSView {
     /// app, another window, a field in the bar), so ⌘Tab and the rest are this Mac's again.
     func updateCapture() {
         let capture = SystemShortcuts.shared
-        if hasKeyboard, ClientPrefs.sendsSystemShortcuts {
+        if hasKeyboard, ClientPrefs.sendsSystemShortcuts || ClientPrefs.sendsTrackpadGestures {
             capture.onKey = { [weak self] event in
                 guard let self, self.hasKeyboard else { return false }
                 self.route(event)
                 return true
+            }
+            TrackpadGestureCapture.shared.onGesture = { [weak self] name, fingers in
+                guard let self, self.hasKeyboard, let session = self.session else { return false }
+                return session.sendGesture(name, fingers: fingers)
             }
             capture.start()
         } else if capture.capturing {
