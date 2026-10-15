@@ -1,6 +1,7 @@
 import AppKit
 import CoreGraphics
 import Foundation
+import StreamProtocol
 
 /// The MacBook's own three- and four-finger trackpad gestures, sent to the other Mac as kind 28
 /// (Gesture.swift) while the picture has control, as the system's shortcuts are (SystemShortcuts):
