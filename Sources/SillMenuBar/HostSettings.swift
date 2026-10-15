@@ -134,7 +134,6 @@ final class HostSettings {
                             // the host starts, and to which the Devices pane saves it.
                             requirePairing: HostConfig.standard.requirePairing,
                             shareClipboard: defaults.bool(forKey: Key.shareClipboard)).validated()
-        config.hideScreens = defaults.bool(forKey: Key.hideScreens)
         remoteAddressName = defaults.string(forKey: Key.remoteAddressName) ?? ""
         updateCheck = defaults.bool(forKey: Key.updateCheck)
         settingsTab = defaults.string(forKey: Key.settingsTab).flatMap(SettingsTab.init(rawValue:)) ?? .general
@@ -142,6 +141,7 @@ final class HostSettings {
         askedScreenRecording = defaults.bool(forKey: Key.askedScreenRecording)
         askedAccessibility = defaults.bool(forKey: Key.askedAccessibility)
         logShowsStats = defaults.bool(forKey: Key.logShowsStats)
+        config.hideScreens = defaults.bool(forKey: Key.hideScreens)   // every property set first; didSet does not run in init
     }
 
     /// Writes only the keys that changed, so a launch-argument override of another key is not
