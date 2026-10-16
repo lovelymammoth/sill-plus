@@ -6,15 +6,20 @@ iPhone or iPad: it pairs the same way, with the same 12-digit code, over the sam
 the same wire (`Sources/StreamProtocol`). Nothing changes on the host: Sill.app 0.4.0 or later serves
 it as it is.
 
-This is a first, incremental client (branch `mac-client`). What it does and does not do yet is under
-[Scope](#scope).
+Sill Viewer and the host features it relies on (picking a monitor, hidden screens, lock on
+disconnect) are additions of this fork, **lovelymammoth/sill-plus**; they are marked *(sill-plus)*
+below. Ready-made builds of both apps are on the fork's
+[Releases page](https://github.com/lovelymammoth/sill-plus/releases) (signed ad hoc, not notarized:
+right-click › Open the first time). What it does and does not do yet is under [Scope](#scope).
 
 ## Setup: Mac mini as the host, MacBook Pro as the client
 
 ### On the Mac mini (the Mac you want to see)
 
-1. Install Sill for Mac 0.4.0 or later (getsill.app/download, or `Scripts/make-app.sh --install
-   --open` from this repository) and grant it Screen Recording and Accessibility, as for an iPad.
+1. Install Sill from this fork's Releases page (`Sill-<version>.dmg`), or build it with
+   `Scripts/make-app.sh --install --open`, and grant it Screen Recording and Accessibility, as for an
+   iPad; then quit and reopen it. Sill for Mac 0.4.0 or later from getsill.app also serves the
+   Viewer, but without monitor picking, hidden screens or lock on disconnect.
 2. Leave Settings › Devices › Require pairing on (the default).
 3. For use away from home through Tailscale: install Tailscale on the Mac mini, sign in, and turn on
    Settings › Remote Access in Sill. Sill then listens on its remote door (port 7455 unless you
@@ -22,10 +27,17 @@ This is a first, incremental client (branch `mac-client`). What it does and does
    internet" stays off: Tailscale counts as your own VPN.
 4. Keep the Mac mini awake and logged in (Energy settings: prevent automatic sleeping when the
    display is off). Sill holds off idle sleep only while a device is connected.
+5. *(sill-plus)* Settings › General has **Hide this Mac's screens while a device is connected** and
+   **Lock this Mac when the last device disconnects**, both on by default (see
+   [The host while you are connected](#the-host-while-you-are-connected-sill-plus)).
+6. *(sill-plus)* For a way back in if the Mac mini is locked while you are away, turn on macOS
+   Screen Sharing (System Settings › General › Sharing); it works over Tailscale.
 
 ### On the MacBook Pro (the Mac you sit at)
 
-1. Build and install the client from this repository (Xcode 27 selected as the developer directory):
+1. Download `Sill-Viewer-<version>.zip` from the fork's Releases page, unzip it into Applications
+   and open it with right-click › Open; or build and install it from this repository (Xcode 27
+   selected as the developer directory):
 
    ```
    Scripts/make-client-app.sh --install --open
@@ -35,6 +47,8 @@ This is a first, incremental client (branch `mac-client`). What it does and does
    (then the keychain asks once after each rebuild to let the new build read its key). Another
    bundle identifier: `SILL_CLIENT_BUNDLE_ID=com.example.sill.client`.
 2. At the first launch macOS 15 and later ask for Local Network: allow it, or Bonjour finds nothing.
+   Grant Sill Viewer Accessibility too (System Settings › Privacy & Security › Accessibility), for
+   system shortcuts and trackpad gestures; after every new build, grant it again.
 3. For Tailscale, install Tailscale on the MacBook Pro too, in the same tailnet.
 
 ### Pairing, at home
@@ -74,13 +88,28 @@ freely and goes full screen (⌃⌥⌘F).
 - **Keys**: while the picture has the keyboard, every key goes to the Mac mini, ⌘ shortcuts
   included (⌘C, ⌘W, ⌘Q act on the Mac mini). Plain keys go as the text they type on this Mac's
   keyboard layout, so layouts, dead keys and input methods follow the Mac you type on. ⌃⌥⌘ shortcuts
-  stay the client's: ⌃⌥⌘D disconnects, ⌃⌥⌘F full screen. With Accessibility granted to Sill Mac
-  Client and Session › Send System Shortcuts to the Mac on (the default), the ones macOS keeps for
+  stay the client's: ⌃⌥⌘D disconnects, ⌃⌥⌘F full screen. With Accessibility granted to Sill Viewer
+  and Session › Send System Shortcuts to the Mac on (the default), the ones macOS keeps for
   itself go too while the picture has the keyboard: a keyboard event tap takes every key first, and
   the system's symbolic hot keys (⌘`, screenshots, Mission Control, Spaces, Spotlight, ⌘Tab where
   macOS lists them) are turned off for that time and back on the moment the app or the picture loses
   the keyboard, at quit, on a signal, and at the next launch after a crash. Click another app or the
   Dock to get this Mac's shortcuts back.
+- **Monitors** *(sill-plus)*: when the Mac mini has more than one display, the bar shows a button for
+  each, "Display 1 · LG HDR 4K" (the number keeps two monitors of one model apart). The Desktop
+  streams the one you pick, and switches at once if it is already streaming.
+- **Trackpad gestures** *(sill-plus)*: while the picture has control, three- and four-finger swipes
+  and pinches go to the Mac mini instead of this Mac, with Session › Send Trackpad Gestures to the
+  Mac on (the default; needs Accessibility). Swipe up: Mission Control. Swipe down: App Exposé.
+  Swipe left or right: the next or previous Space. Pinch: Apps. Spread: Show Desktop. The client
+  recognizes the gesture when the first finger lifts and the Mac mini runs its own shortcut for that
+  action, so a gesture over a window first switches the picture to the Desktop, where Mission
+  Control and Spaces show. If this Mac reacts as well (its Dock takes the gesture before the client
+  can), turn those gestures off in System Settings › Trackpad › More Gestures while you use the
+  Viewer.
+- **fn-Esc** *(sill-plus)*: gives this Mac its own keyboard, trackpad and shortcuts back while the
+  window stays open; the bar says "Control is on this Mac: click the picture or press fn-Esc". A
+  click on the picture, or fn-Esc again, hands control back to the Mac mini.
 - **Quality** (the bar's slider menu, from a Mac that sends kind 16): the Mac's Quality preset and
   Resolution, as its own menu has them (away from home they set its away quality), and the frame
   rate this client asks for: 60 fps by default; 120 on a ProMotion screen only when chosen, since
@@ -88,6 +117,36 @@ freely and goes full screen (⌃⌥⌘F).
   under the bar says so with the Mac's suggestion as a button.
 - **Disconnect** (⌃⌥⌘D, or the button) ends the session; the Mac mini stops capturing once no device
   is connected.
+
+## The host while you are connected *(sill-plus)*
+
+Two settings in Sill › Settings › General on the Mac mini, both on by default (the CLI:
+`--hide-screens`, `--lock-on-leave`):
+
+- **Hide this Mac's screens while a device is connected**: while any device is connected, every
+  monitor of the Mac mini goes dark and its own keyboard and mouse do nothing. The picture you see
+  is unaffected: the screens are darkened at the displays' output (their gamma tables), after
+  ScreenCaptureKit has read the frame, and no window covers anything. Input from the connected
+  device is marked by Sill and passes; everything else is dropped. Without Accessibility only the
+  screens go dark.
+- **Lock this Mac when the last device disconnects**: when the last device leaves, the screens stay
+  dark and the Mac mini ignores its own input for 10 seconds; a device that reconnects within that
+  time finds it exactly as it left it. Then the Mac mini locks, and only once macOS reports it
+  locked do the screens come back, showing the lock screen. Quitting Sill while the screens are
+  hidden locks at once. Turning hiding off from a connected device shows the screens unlocked: that
+  is your choice.
+
+Unlocking from afar: right after Sill locks the Mac mini, macOS gives ScreenCaptureKit nothing to
+capture, so a device that connects sees no picture. Once the lock screen has been woken (a key or a
+mouse move at the Mac mini), a connected device sees it and can type the password; that is how the
+Mac mini was unlocked from an iPhone on 2026-10-16. Away from home, keep macOS Screen Sharing on as
+the way back in.
+
+Known issue (2026-10-16, cause not found): after an overnight lock by Sill the Mac mini's own
+keyboard and clicks did nothing on its lock screen while the pointer moved and an iPhone connected
+through Sill could still type; it lasted until a restart. If it happens, don't restart: unlock it
+through Sill from another device, then quit the Mac mini's other input utilities one at a time to
+see which brings its keyboard back.
 
 ## How it works
 
@@ -170,7 +229,7 @@ makes the app browse a test host registered with `SILL_TEST_SERVICE_TYPE` instea
 
 ## Scope
 
-In this first step:
+Built:
 
 - Bonjour discovery, pairing at home (ask, then the code) and by address (the code, or a
   `sill://pair` link), saved Macs, sessions at home and through the remote door (Tailscale, a VPN, a
@@ -178,15 +237,23 @@ In this first step:
 - The Desktop and single windows, app launch, window close/minimize/full screen.
 - Mouse, right click, drag, phased trackpad scrolling, keys and text, the Mac's cursor shape.
 - Statistics to the Mac (its log and menu show this Mac like any device).
+- The host settings panel (kinds 16 and 17): the Quality menu.
+- *(sill-plus)* System shortcuts and trackpad gestures (kind 28) to the Mac; fn-Esc; monitor
+  picking (kind 40, `pickDisplay`); on the host, hidden screens and lock on disconnect.
+- *(sill-plus)* Releases with both apps, signed ad hoc.
 
 Not yet:
 
-- The Mac's menus (kinds 24, 25, 27), trackpad gestures (kind 28), the Mac's pointer while it moves
-  (kind 26), the host settings panel (kinds 16 and 17), Aa (window scaling) and a viewport scale.
+- The Mac's menus (kinds 24, 25, 27), the Mac's pointer while it moves (kind 26), Aa (window
+  scaling) and a viewport scale.
+- The clipboard (kind 32): Sill shares it with the iPhone and iPad app, but the Viewer does not
+  subscribe to it yet.
+- Two-finger pinch-to-zoom, rotate and smart zoom inside apps.
 - Moving a live session between paths (home ⇄ Tailscale) without a reconnect; the automatic
   reconnect after a loss (the window offers Reconnect).
 - A Retina-aware viewport (the client sends its size in points; the host streams at its own
   resolution setting).
 - Pairing over a Thunderbolt or USB cable without a code (Sill.app's cable rule is for an iPhone's or
   iPad's NCM interface, not a Mac).
-- An icon of its own, notarization, a release workflow, and the UI tested on a second Mac.
+- An icon of its own and notarization (no Apple Developer ID: every build asks for its permissions
+  again).

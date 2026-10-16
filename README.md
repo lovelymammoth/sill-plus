@@ -26,6 +26,94 @@ Sill for Mac is a free, notarized download from
 on the [App Store](https://apps.apple.com/app/id6816359860), and you can also
 build it from source (below).
 
+## Additions in this fork (sill-plus)
+
+This repository, **lovelymammoth/sill-plus**, is a fork of
+[Saffsanity/sill](https://github.com/Saffsanity/sill). Everything above and
+below describes Sill as upstream ships it. On top of it, the fork adds a second
+app and a few host features.
+
+### Downloads
+
+Builds from this fork are on its
+[Releases page](https://github.com/lovelymammoth/sill-plus/releases), tagged
+`v<upstream version>-plus.<n>` (for example `v0.5.1-plus.2`: upstream 0.5.1,
+the fork's second build on it). Each release has:
+
+- **Sill** (`Sill-<version>.dmg` or `.zip`): the host, for the Mac you want to
+  reach. Use it in place of Sill for Mac from getsill.app.
+- **Sill Viewer** (`Sill-Viewer-<version>.zip`): the client, for the Mac you
+  sit at.
+
+These builds are signed ad hoc and are **not notarized**. The first time you
+open each app, right-click it and choose **Open**, or run
+`xattr -dr com.apple.quarantine "/Applications/Sill Viewer.app"` (and the same
+for `Sill.app`). macOS treats every new build as a new app, so grant its
+permissions again after each update: Screen Recording and Accessibility for
+Sill (then quit and reopen it), Accessibility for Sill Viewer. Sill's own
+update check reads upstream's releases only, so it never offers this fork's.
+
+### Sill Viewer: another Mac as the device
+
+Sill Viewer shows the desktop or a single window of a Mac running Sill on
+another Mac, and sends that Mac your mouse, trackpad and keyboard. To Sill it
+is a device like an iPhone or iPad: it pairs with the same 12-digit code, over
+the same encrypted connection, at home or away through Tailscale.
+
+- **Pick a monitor.** When the host has more than one display, the bar shows a
+  button for each ("Display 1 · LG HDR 4K"); the Desktop streams the one you
+  pick.
+- **System shortcuts go to the host.** While the picture has the keyboard,
+  ⌘Tab, Spotlight, Mission Control, Spaces, screenshots and the rest act on
+  the host, not on the Mac you sit at (Session › Send System Shortcuts to the
+  Mac; needs Accessibility for Sill Viewer).
+- **Trackpad gestures go to the host.** Three- and four-finger swipes up,
+  down, left and right, pinch and spread do on the host what they do on your
+  own Mac: Mission Control, App Exposé, the next or previous Space, Apps, Show
+  Desktop (Session › Send Trackpad Gestures to the Mac). If your own Mac
+  reacts to them too, turn those gestures off in System Settings › Trackpad ›
+  More Gestures while you use the Viewer.
+- **fn-Esc gives your Mac its keyboard and trackpad back.** The bar then says
+  "Control is on this Mac"; click the picture or press fn-Esc again to hand
+  control back to the host.
+- **Quality** from the bar: the host's preset and resolution, and 60 fps by
+  default (120 only when chosen).
+
+[docs/mac-client.md](docs/mac-client.md) has the setup step by step, how it
+works and what it does not do yet.
+
+### Sill (host): hidden screens and lock on disconnect
+
+Two settings in Sill › Settings › General, both on by default:
+
+- **Hide this Mac's screens while a device is connected.** The host's
+  monitors go dark and its own keyboard and mouse do nothing while any device
+  (iPhone, iPad or Mac) is connected, so nobody in the room sees or changes
+  what you do. The device still sees everything: the screens are darkened
+  after the picture is captured.
+- **Lock this Mac when the last device disconnects.** When the last device
+  leaves, the screens stay dark and the host ignores its own input for 10
+  seconds; reconnect within that time and it is exactly as you left it. Then
+  the host locks, and only once it is locked do the screens come back. Quitting
+  Sill while the screens are hidden locks it at once.
+
+A host locked this way may not be unlockable through Sill: right after the
+lock, macOS gives Sill no picture of the lock screen. Once the lock screen has
+been woken (a key or a mouse move at the host), a connected device sees it and
+can type the password. Away from home, keep macOS Screen Sharing turned on at
+the host (System Settings › General › Sharing) as a way back in over
+Tailscale.
+
+### Known issue
+
+On 2026-10-16 the host's own keyboard and clicks stopped working on its lock
+screen after an overnight lock by Sill, while the pointer still moved and a
+device connected through Sill could still type. A restart cleared it. The
+cause is not known yet. If it happens, don't restart: connect from another
+device, unlock it there, and quit the host's other input utilities one at a
+time (keyboard remappers, dictation, launchers) to see which brings the
+keyboard back.
+
 ## Screenshots
 
 These are the iPad screenshots from the App Store; on iPhone and iPhone Duo,
@@ -166,8 +254,9 @@ The iPhone and iPad app:
    Mac. The first time, a Sill for Mac built from this repository asks you to
    pair: scan the code it shows, or connect the device with a USB cable.
 
-**Sill Viewer** shows a Mac's windows on another Mac, as a device to Sill
-for Mac like an iPhone or iPad: `Scripts/make-client-app.sh --install --open`.
+**Sill Viewer** (added in this fork) shows a Mac's windows on another Mac, as
+a device to Sill for Mac like an iPhone or iPad:
+`Scripts/make-client-app.sh --install --open`.
 [docs/mac-client.md](docs/mac-client.md) has the setup (a Mac mini as the host,
 a MacBook Pro as the client, at home and through Tailscale) and what it does so
 far.
