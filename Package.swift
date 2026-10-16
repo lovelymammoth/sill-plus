@@ -11,6 +11,9 @@ let package = Package(
         .executable(name: "SillHost", targets: ["SillHostCLI"]),
         // Sill.app's executable. Scripts/make-app.sh wraps it into the bundle and signs it.
         .executable(name: "SillMenuBar", targets: ["SillMenuBar"]),
+        // Sill Viewer (SillMacClient): another Mac's windows on this Mac, a device to Sill.app as an iPhone or
+        // iPad is (docs/mac-client.md). Scripts/make-client-app.sh wraps it into a bundle.
+        .executable(name: "SillMacClient", targets: ["SillMacClient"]),
         // No product for SillHostCore: the iOS project links this package and must never see it.
     ],
     targets: [
@@ -24,6 +27,10 @@ let package = Package(
         .executableTarget(name: "SillHostCLI", dependencies: ["SillHostCore", "StreamProtocol"]),
         // The menu bar app: status item, Settings and Log windows (AppKit lifecycle, SwiftUI panes).
         .executableTarget(name: "SillMenuBar", dependencies: ["SillHostCore", "StreamProtocol"]),
+        // The Mac client. Never links SillHostCore: it is a device, not a host. MessageReader,
+        // SavedMacs, KeyChords and RemoteDialPolicy are the iOS client's own files (symlinks into
+        // iOSClient/), pure and checked there, so both clients read, save and key the same way.
+        .executableTarget(name: "SillMacClient", dependencies: ["StreamProtocol"]),
         // Milestone 3 spike: virtual display + window move + capture. Its VirtualDisplay.swift
         // is a symlink to the host's copy. Not shipped.
         .executableTarget(name: "CaptureProbe"),

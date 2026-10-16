@@ -18,6 +18,11 @@ final class WindowCatalog {
     private(set) var windows: [SCWindow] = []
     private(set) var infos: [WindowInfo] = []
     private(set) var display: SCDisplay?
+    /// Every display of this Mac's own, Sill's virtual ones left out (kind 40: a device picks which the
+    /// Desktop is).
+    private(set) var displays: [SCDisplay] = []
+    /// The display a device picked for the Desktop; nil, or one no longer there: the usual rule.
+    var preferredDisplayID: CGDirectDisplayID?
     private(set) var installedApps: [AppInfo] = []
     /// This process as ScreenCaptureKit lists it, from the last look: the Desktop stream leaves it
     /// out, so Sill's own windows (the pairing code above all) never reach a device. Nil when it
@@ -242,9 +247,14 @@ final class WindowCatalog {
         guard seq > appliedSeq else { return }      // a newer refresh already landed; don't go backwards
         appliedSeq = seq
         ownApplication = content.applications.first { $0.processID == Self.ownPID }
-        display = preferMainDisplay
-            ? (content.displays.first { $0.displayID == CGMainDisplayID() } ?? content.displays.first)
-            : content.displays.first
+        displays = content.displays.filter { !StreamCoordinator.isSillVirtualDisplay($0.displayID) }
+        if let want = preferredDisplayID, let picked = displays.first(where: { $0.displayID == want }) {
+            display = picked
+        } else {
+            display = preferMainDisplay
+                ? (content.displays.first { $0.displayID == CGMainDisplayID() } ?? content.displays.first)
+                : content.displays.first
+        }
         var visible = content.windows.filter { w in
             guard let app = w.owningApplication, !app.applicationName.isEmpty else { return false }
             return w.windowLayer == 0                                  // drops widgets, wallpaper, backstop

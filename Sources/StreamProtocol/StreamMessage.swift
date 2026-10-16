@@ -67,6 +67,16 @@ public enum StreamMessageKind: UInt8 {
     case gesture = 28        // device → host: JSON TrackpadGesture — a three- or four-finger gesture the device
                              // recognized, which the Mac turns into its own shortcut (Mission Control, a Space,
                              // Apps…). Only to a host whose window list says `gestures` 1 or more
+    // The clipboard (Clipboard.swift, ClipboardPolicy.swift), after the gesture's 28: 29 is the audio
+    // plan's, 30 and 31 the Mac client's side streams (pull request #66, which shares this number and
+    // shape). Older readers map it to `.unknown` and skip it.
+    case clipboard = 32      // both ways: JSON Clipboard. Device → host: any kind 32 subscribes the connection to
+                             // the Mac's copies (an empty one at connect, while the device's Share Clipboard is
+                             // on), its text becomes the Mac's clipboard, and `stop` ends the subscription; only
+                             // to a host whose window list says `clipboard` 1 or more. Host → device: text copied
+                             // on the Mac (or sent by another device), only to a connection that subscribed
+    case pickDisplay = 40    // device → host: JSON PickDisplay — which of the host's own displays the Desktop is;
+                             // only to a host whose window list carries `displays` (pull request #66's number and shape)
     case unknown = 255       // never sent: what parseHeader yields for a kind this build does not know
 }
 
