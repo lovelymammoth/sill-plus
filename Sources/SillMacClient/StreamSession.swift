@@ -56,6 +56,13 @@ final class StreamSession: ObservableObject {
     @Published private(set) var hostVersion: String?
     /// `WindowList.gestures`: 1 or more when the Mac takes kind 28's trackpad gestures.
     private(set) var hostGestures: Int?
+    /// `WindowList.keyRepeat`: 1 or more when the Mac repeats a key held down itself (upstream 0.6.0).
+    private(set) var hostKeyRepeat: Int?
+    /// Why the Mac shows nothing of itself but its lock screen (upstream 0.6.0's LockPolicy, by its list's
+    /// `locked` and `offConsole`): `.screenLocked`, its lock screen streams and a password typed here
+    /// unlocks it; `.otherUser`, another user or the login window is on its screen, the picture is black
+    /// and nothing typed reaches it. Nil while it is unlocked, and from every host before 0.6.0.
+    @Published private(set) var lockWhy: LockedMac.Why?
     @Published private(set) var route = ""
     @Published private(set) var frameSize: CGSize = .zero
     /// The Mac's streaming settings as it last told this connection (kind 16); nil from a Mac that
@@ -333,6 +340,8 @@ final class StreamSession: ObservableObject {
                 }
                 self.hostVersion = list.hostVersion
                 self.hostGestures = list.gestures
+                self.hostKeyRepeat = list.keyRepeat
+                self.lockWhy = LockedMac.why(list)
                 if !list.macName.isEmpty { self.macName = list.macName }
                 self.windows = list.windows
                 self.active = list.active

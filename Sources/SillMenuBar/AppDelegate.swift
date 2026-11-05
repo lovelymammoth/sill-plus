@@ -36,6 +36,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         statusItem = item
         model.onPresentation = { [weak item] p in item?.show(p) }
         model.showSettings = { [weak self] tab in self?.showSettings(tab: tab) }
+        model.settingsWindowForTests = { [weak self] in self?.settingsWindow }
         model.showLog = { [weak self] in self?.showLog() }
         // An offer can come from a device's request (its ask at the home door, or kind 21), and the
         // cable notice from a device pairing over the cable, each on a main-actor hop: showing a
@@ -52,6 +53,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             return true
         }
         model.showCableNotice = { [weak self] notice in self?.showCableNotice(notice) }
+        // Settings › Devices' "Show the pairing window to screen sharing": a pairing window already
+        // made follows a change at once, on screen or not (one made later reads it as it is made).
+        model.settings.onPairingWindowSharingChange = { [weak self] in self?.pairingWindow?.applySharing() }
         // Always, not only with the virtual display on: Settings can turn it on at any time, and a
         // kill must then still put the streamed window back.
         HostShutdown.install { [model] in model.coordinator }

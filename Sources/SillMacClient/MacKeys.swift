@@ -105,10 +105,14 @@ enum MacKeys {
         case nothing
     }
 
+    ///
+    /// The characters always go as text here (`KeyTyping.text`, the iOS client's rule for a Mac that
+    /// repeats no key): this Mac's own input source makes them, Greek or an input method's included,
+    /// and the host never needs this Mac's layout (sill-plus, on upstream 0.6.0's ForwardedKeys).
     static func down(keyCode: UInt16, modifiers raw: UInt64, characters: String?,
                      forwarded: inout ForwardedKeys) -> Down {
         let modifiers = wireModifiers(raw)
-        if let usage = hidUsages[keyCode], let event = forwarded.began(usage, modifiers: modifiers) {
+        if let usage = hidUsages[keyCode], let event = forwarded.began(usage, modifiers: modifiers, typing: .text) {
             return .key(event)
         }
         if let t = text(keyCode: keyCode, characters: characters) { return .text(t) }
@@ -116,6 +120,15 @@ enum MacKeys {
     }
 
     /// A key's up: its up when its down went as a key, else nothing (its text went with the down).
+    /// Whether this Mac's own repeat of a key held down (NSEvent's isARepeat) is dropped: the key went
+    /// as a key and the host repeats held keys itself (`WindowList.keyRepeat`, upstream's KeyRepeat, at
+    /// the host's Delay Until Repeat and Key Repeat Rate), so a repeat sent too would restart its delay
+    /// at every one. Text and a host from before key repeat keep this Mac's repeats.
+    static func dropsRepeat(keyCode: UInt16, isARepeat: Bool, hostRepeats: Bool, forwarded: ForwardedKeys) -> Bool {
+        guard isARepeat, hostRepeats, let usage = hidUsages[keyCode] else { return false }
+        return forwarded.down.contains(usage)
+    }
+
     static func up(keyCode: UInt16, forwarded: inout ForwardedKeys) -> InputEvent? {
         guard let usage = hidUsages[keyCode] else { return nil }
         return forwarded.ended(usage)
@@ -133,7 +146,7 @@ enum MacKeys {
         guard let usage = hidUsages[keyCode], let flag = KeyModifiers.flag(forKey: usage) else { return [] }
         if raw & flag.rawValue != 0 {
             guard !forwarded.down.contains(usage) else { return [] }
-            return forwarded.began(usage, modifiers: wireModifiers(raw)).map { [$0] } ?? []
+            return forwarded.began(usage, modifiers: wireModifiers(raw), typing: .text).map { [$0] } ?? []
         }
         return siblings(usage).compactMap { forwarded.ended($0) }
     }

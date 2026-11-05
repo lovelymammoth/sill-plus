@@ -246,6 +246,9 @@ final class StreamNSView: NSView {
         let flags = UInt64(event.modifierFlags.intersection(.deviceIndependentFlagsMask).rawValue)
         switch event.type {
         case .keyDown:
+            if MacKeys.dropsRepeat(keyCode: event.keyCode, isARepeat: event.isARepeat,
+                                   hostRepeats: KeyTyping.macRepeats(keyRepeat: session.hostKeyRepeat),
+                                   forwarded: forwarded) { return }
             switch MacKeys.down(keyCode: event.keyCode, modifiers: flags, characters: event.characters, forwarded: &forwarded) {
             case .key(let e): session.input(e)
             case .text(let t): session.input(.text(t))

@@ -3,8 +3,9 @@ import UIKit
 
 // TEST ONLY (Tests/touchrig): stand-ins for what TrackpadView.swift and InputOverlay.swift use from the
 // app's other files. HIDKey is the app's own, cut from PortraitStreamScreen.swift by run.sh (with
-// KeyModifiers, where the sources keep it there); StreamProtocol's Input.swift, PointerPresence.swift,
-// TrackpadGestures.swift and KeyChords.swift are compiled in whole where the sources have them.
+// KeyModifiers, where the sources keep it there); StreamProtocol's Input.swift and ScrollDirection.swift,
+// PointerPresence.swift, TrackpadGestures.swift and KeyChords.swift are compiled in whole where the
+// sources have them.
 
 enum Palette {
     static let trackpad = Color(red: 0.06, green: 0.07, blue: 0.08)
@@ -19,4 +20,19 @@ enum HEVCDisplayView {
         let w = videoSize.width * scale, h = videoSize.height * scale
         return CGRect(x: bounds.midX - w / 2, y: bounds.midY - h / 2, width: w, height: h)
     }
+}
+
+/// The app's EscapeKey (AddMacCard.swift) as InputOverlay.swift asks it since the hardware keyboard's
+/// change (docs/hardware-keyboard-plan.md): the rig shows no tour, pairing overlay or Settings panel in
+/// any window.
+enum EscapeKey {
+    static func onScreen(in window: UIWindow?) -> Bool { false }
+}
+
+/// The app's StreamClient as the surfaces ask it since Reverse Scrolling (issue #143): the device's switch,
+/// read as each scroll begins. Off, as on a fresh install: the rig's verdicts compare the surfaces with
+/// those before the switch (`--rev`), whose scrolls go the natural way; with it on, every finger's and
+/// pad's scroll would come out the other way, which compare.py does not judge.
+enum StreamClient {
+    static let reverseScrollOn = false
 }

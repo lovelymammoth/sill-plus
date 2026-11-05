@@ -188,6 +188,35 @@ session("typing with shift", [.down(4, "h"), .up(4), .flags(56), .down(14, "E"),
 session("⌘ held when the window resigns", [.flags(55), .down(13, "w")], resign: true)
 session("⌃⌥ held when the window resigns", [.flags(59), .flags(58)], resign: true)
 
+// MARK: This Mac's own repeats (sill-plus on upstream 0.6.0's KeyRepeat)
+
+do {
+    let left: UInt16 = 123   // ←, a key that goes as a key
+    var f = ForwardedKeys()
+    check(MacKeys.dropsRepeat(keyCode: left, isARepeat: true, hostRepeats: true, forwarded: f) == false,
+          "a repeat of a key whose down never went is not dropped")
+    if case .key = MacKeys.down(keyCode: left, modifiers: 0, characters: nil, forwarded: &f) {} else {
+        check(false, "← goes as a key")
+    }
+    check(MacKeys.dropsRepeat(keyCode: left, isARepeat: true, hostRepeats: true, forwarded: f),
+          "a held ←'s repeat is dropped when the host repeats it itself")
+    check(MacKeys.dropsRepeat(keyCode: left, isARepeat: true, hostRepeats: false, forwarded: f) == false,
+          "a host before key repeat gets this Mac's repeats")
+    check(MacKeys.dropsRepeat(keyCode: left, isARepeat: false, hostRepeats: true, forwarded: f) == false,
+          "a key's first down is never dropped")
+    _ = MacKeys.up(keyCode: left, forwarded: &f)
+    check(MacKeys.dropsRepeat(keyCode: left, isARepeat: true, hostRepeats: true, forwarded: f) == false,
+          "after its up, nothing is held to repeat")
+    var g = ForwardedKeys()
+    if case .text = MacKeys.down(keyCode: 0, modifiers: 0, characters: "a", forwarded: &g) {} else {
+        check(false, "a plain letter goes as text")
+    }
+    check(MacKeys.dropsRepeat(keyCode: 0, isARepeat: true, hostRepeats: true, forwarded: g) == false,
+          "a letter typed as text keeps this Mac's repeats (the host repeats no text)")
+    check(KeyTyping.macRepeats(keyRepeat: nil) == false && KeyTyping.macRepeats(keyRepeat: 1),
+          "the host repeats keys from keyRepeat 1")
+}
+
 // MARK: Geometry
 
 let bounds = CGRect(x: 0, y: 0, width: 1000, height: 500)

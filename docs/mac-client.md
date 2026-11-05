@@ -136,6 +136,13 @@ Two settings in Sill › Settings › General on the Mac mini, both on by defaul
   hidden locks at once. Turning hiding off from a connected device shows the screens unlocked: that
   is your choice.
 
+Upstream 0.6.0's rule for a locked Mac applies on top (its docs/locked-mac-plan.md): while the
+Mac mini is locked, a device sees only its lock screen, no windows, apps, thumbnails, clipboard or
+sound; only a paired device can type (the password); with another user or the login window on its
+screen, a black picture and no input at all. Sill Viewer says so in a line under its bar. *(sill-plus)*
+A locked Mac mini also leaves its monitors out of the list, so the Viewer's monitor buttons go away
+until it is unlocked.
+
 Unlocking from afar: right after Sill locks the Mac mini, macOS gives ScreenCaptureKit nothing to
 capture, so a device that connects sees no picture. Once the lock screen has been woken (a key or a
 mouse move at the Mac mini), a connected device sees it and can type the password; that is how the
@@ -241,11 +248,17 @@ Built:
 - *(sill-plus)* System shortcuts and trackpad gestures (kind 28) to the Mac; fn-Esc; monitor
   picking (kind 40, `pickDisplay`); on the host, hidden screens and lock on disconnect.
 - *(sill-plus)* Releases with both apps, signed ad hoc.
+- *(sill-plus, on upstream 0.6.0)* A locked Mac's line (`WindowList.locked`, `LockedMac`'s words); a
+  held key that goes as a key repeats at the host's own timing (upstream's KeyRepeat), this Mac's
+  own repeats of it dropped; letters still go as text, typed by this Mac's input source, so a held
+  letter repeats at this Mac's timing as before.
 
 Not yet:
 
 - The Mac's menus (kinds 24, 25, 27), the Mac's pointer while it moves (kind 26), Aa (window
   scaling) and a viewport scale.
+- Upstream 0.6.0's sound (kind 43: the Viewer's hello lists no codec, so the Mac sends it none) and
+  the keyframe request after an interrupted picture (kind 44).
 - The clipboard (kind 32): Sill shares it with the iPhone and iPad app, but the Viewer does not
   subscribe to it yet.
 - Two-finger pinch-to-zoom, rotate and smart zoom inside apps.

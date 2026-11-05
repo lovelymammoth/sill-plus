@@ -3,5 +3,6 @@ flags: -package-name sill
 Sources/StreamProtocol/*.swift
 Sources/SillHost/KeyStrokes.swift
 iOSClient/KeyChords.swift
+iOSClient/TextComposition.swift
 Sources/SillMacClient/MacKeys.swift
 Sources/SillMacClient/StreamGeometry.swift

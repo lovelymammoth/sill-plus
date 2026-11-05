@@ -131,8 +131,11 @@ struct PortraitMetrics {
 /// row, trackpad), the way a folded laptop's bottom half carries them. A phone's (Noah, 2026-09-27)
 /// puts the picture in a fixed 16:10 pane at the top and gives the rest to the controls: row 1
 /// (Apps, Aa, Keyboard, Desktop, Settings), the thumbnails, six keys and a taller trackpad
-/// (`PhonePortraitLayout`). The picture pane, the key row, the trackpad, the drawer and the Settings
-/// panel are the same views in both; each arrangement places them.
+/// (`PhonePortraitLayout`). With Larger Picture (the Settings panel's This iPhone; issue #58) the
+/// phone's thumbnails go and the picture grows down to the software keyboard while a window
+/// streams; the Desktop keeps the usual arrangement (`largerKeyboard`; docs/larger-picture-plan.md).
+/// The picture pane, the key row, the trackpad, the drawer and the Settings panel are the same views
+/// in both; each arrangement places them.
 struct PortraitStreamScreen: View {
     @ObservedObject var client: StreamClient
     var metrics: PortraitMetrics = .regular
@@ -160,6 +163,14 @@ struct PortraitStreamScreen: View {
     var linkLine: String? = nil
     /// Take the Tour in the panel (see `StreamScreen.takeTour`).
     var takeTour: () -> Void = {}
+    /// Larger Picture on a phone: the software keyboard's height its rows are kept above
+    /// (`PhonePortraitLayout.keyboard(for:largerPicture:foldable:)`, while a window streams with the
+    /// switch on: `PhonePortraitLayout.largerPicture(switchOn:streaming:)`); nil for the phone's usual
+    /// arrangement (the switch off, the Desktop or nothing streaming), and in the halves.
+    var largerKeyboard: CGFloat? = nil
+    /// The picture's pinch zoom (StreamScreen's; StreamZoom): not watched here, only by the picture's
+    /// own view, so a pinch redraws nothing else.
+    let zoom: StreamZoomModel
 
     private var streamShape: RoundedRectangle { RoundedRectangle(cornerRadius: 12, style: .continuous) }
     /// The Duo's fold across this screen (StreamScreen, iOS 27.1): where the halves split.
@@ -168,7 +179,7 @@ struct PortraitStreamScreen: View {
     var body: some View {
         GeometryReader { geo in
             if metrics.phone {
-                phone(PhonePortraitLayout(size: geo.size))
+                phone(PhonePortraitLayout(size: geo.size, keyboard: largerKeyboard), origin: geo.frame(in: .global).origin)
             } else {
                 halves(geo.size)
             }
@@ -187,7 +198,7 @@ struct PortraitStreamScreen: View {
             Color.black
 
             VStack(spacing: split.controls - half) {
-                picturePane.padding(8).frame(height: half)
+                picturePane(measured: true).padding(8).frame(height: half)
                 controls(width: size.width).frame(height: size.height - split.controls)
             }
 
@@ -268,7 +279,8 @@ struct PortraitStreamScreen: View {
 
             TextScaleControl(scale: $textScale, open: $scaleOpen,
                              width: metrics.buttonWidth, height: metrics.buttonHeight,
-                             radius: metrics.buttonRadius, pointsPerStep: 36)
+                             radius: metrics.buttonRadius, pointsPerStep: 36,
+                             offered: client.textScaleOffersOff, available: client.textScaleSelectable)
                 .tourTarget(.textSize)
 
             desktopButton()
@@ -293,23 +305,53 @@ struct PortraitStreamScreen: View {
     /// the Settings panel hang under row 1, which stays live and undimmed while they are open, as
     /// the landscape bar does; the dim and the tap catcher cover everything else, so a tap outside
     /// closes them and never reaches the Mac.
-    private func phone(_ layout: PhonePortraitLayout) -> some View {
-        ZStack(alignment: .topLeading) {
+    ///
+    /// With Larger Picture (`layout.largerPicture`: the switch on while a window streams; the
+    /// Desktop, which Aa never resizes, and nothing streaming keep the usual arrangement, so
+    /// StreamScreen hands this no keyboard then) there is no thumbnails' row: the picture gets every
+    /// point that keeps the key row 10 pt above the software keyboard, its pane at the picture's own
+    /// shape at the top of that room (`pane(video:)`), the trackpad is the keyboard's footprint, and
+    /// the Menus button joins row 1 after Apps. Windows come from Apps (an open app again shows its
+    /// next window) and from the Mac's Window menu; the drawer opens above row 1, over the room
+    /// (`layout.drawer`), so a keyboard up, the Mac's or its own search field's, covers none of it.
+    /// The viewport is the layout's picture in both arrangements (with Larger Picture the whole
+    /// room), so the Mac fits a window to all of it; a switch between the Desktop and a window
+    /// changes the arrangement and so sends one new viewport, as a rotation does.
+    private func phone(_ layout: PhonePortraitLayout, origin: CGPoint) -> some View {
+        let span = layout.trackpadSpan(video: client.videoSize)
+        return phoneStack(layout, span: span)
+            // The viewport: the picture's pane, or with Larger Picture its whole room (never the pane
+            // at the picture's shape, which would hold a window at the shape it has).
+            .onChange(of: layout.picture.size, initial: true) { _, size in onPanelSize(size) }
+            #if DEBUG
+            .modifier(PhoneConsole(layout: layout, span: span, video: client.videoSize, origin: origin))
+            #endif
+    }
+
+    private func phoneStack(_ layout: PhonePortraitLayout, span: CGFloat) -> some View {
+        let larger = layout.largerPicture
+        // In reading order, which is also top to bottom: the picture, row 1, the strip (none with
+        // Larger Picture), the key row, the trackpad.
+        let rects: [CGRect] = larger ? [layout.pane(video: client.videoSize), layout.row1, layout.keys, layout.trackpad]
+                                     : [layout.picture, layout.row1, layout.strip, layout.keys, layout.trackpad]
+        return ZStack(alignment: .topLeading) {
             Color.black
 
-            // In reading order, which is also top to bottom. While the drawer is open VoiceOver
-            // skips what it dims (a double-tap there would reach the Mac, where a tap only closes
-            // the drawer): row 1, then the drawer. The drawer and the Settings panel cover the strip
-            // but for its first thumbnail's badge, which sticks out past row 1's leading edge; the
-            // strip goes while either is open, so nothing cut shows beside them.
-            PhoneRows(layout: layout) {
-                picturePane.accessibilityHidden(drawerOpen)
-                phoneRow1(layout)
-                phoneRow2(layout)
-                    .opacity(drawerOpen || settingsOpen ? 0 : 1)
-                    .accessibilityHidden(drawerOpen)
+            // While the drawer is open VoiceOver skips what it dims (a double-tap there would reach
+            // the Mac, where a tap only closes the drawer): row 1, then the drawer. The drawer and the
+            // Settings panel cover the strip but for its first thumbnail's badge, which sticks out
+            // past row 1's leading edge; the strip goes while either is open, so nothing cut shows
+            // beside them.
+            PhoneRows(size: layout.size, rects: rects) {
+                picturePane(measured: false).accessibilityHidden(drawerOpen)
+                phoneRow1(layout, menus: larger && client.menus.hasMenus)
+                if !larger {
+                    phoneRow2(layout)
+                        .opacity(drawerOpen || settingsOpen ? 0 : 1)
+                        .accessibilityHidden(drawerOpen)
+                }
                 keyRow(.phone).accessibilityHidden(drawerOpen)
-                trackpad(verticalSpan: layout.trackpadSpan).accessibilityHidden(drawerOpen)
+                trackpad(verticalSpan: span).accessibilityHidden(drawerOpen)
             }
 
             if drawerOpen {
@@ -317,6 +359,7 @@ struct PortraitStreamScreen: View {
                     dim.placed(layout.dim[index], in: layout.size)
                 }
                 drawer
+                    .modifier(AfterRow1(active: larger))
                     .placed(layout.drawer, in: layout.size)
                     .transition(.opacity)
             }
@@ -338,18 +381,30 @@ struct PortraitStreamScreen: View {
 
     /// Row 1: the landscape bar's five, in its order, widened to share the row with the key row's
     /// whitespace between them (Noah). Aa's ruler unfolds over the row; the other four fade and take
-    /// no touch until it folds.
-    private func phoneRow1(_ layout: PhonePortraitLayout) -> some View {
-        let width = layout.buttons[PhonePortraitLayout.Button.apps.rawValue].width
+    /// no touch until it folds. `menus`: Larger Picture's row 1 while the Mac sent menus, the Menus
+    /// button after Apps, six to the row (`buttonsBesideMenus`), where the landscape bar has it.
+    private func phoneRow1(_ layout: PhonePortraitLayout, menus: Bool) -> some View {
+        let width = (menus ? layout.buttonsBesideMenus : layout.buttons)[PhonePortraitLayout.Button.apps.rawValue].width
         return HStack(spacing: PhonePortraitLayout.gap) {
             appsButton(width: width)
                 .opacity(scaleOpen ? 0 : 1)
                 .allowsHitTesting(!scaleOpen)
+                .tourTarget(.apps)
+
+            if menus {
+                MacMenuButton(client: client, width: layout.menus.width, height: layout.menus.height,
+                              radius: metrics.buttonRadius, iconSize: metrics.buttonIcon, spacing: metrics.buttonSpacing,
+                              iconBox: PortraitMetrics.phoneIconBox, onOpen: menusOpened, onClose: menusClosed)
+                    .opacity(scaleOpen ? 0 : 1)
+                    .allowsHitTesting(!scaleOpen)
+                    .transition(.opacity)
+            }
 
             TextScaleControl(scale: $textScale, open: $scaleOpen,
                              width: width, height: layout.row1.height,
-                             radius: metrics.buttonRadius, pointsPerStep: layout.rulerStep,
-                             iconBox: PortraitMetrics.phoneIconBox, iconSpacing: metrics.buttonSpacing)
+                             radius: metrics.buttonRadius, pointsPerStep: menus ? layout.rulerStepBesideMenus : layout.rulerStep,
+                             iconBox: PortraitMetrics.phoneIconBox, iconSpacing: metrics.buttonSpacing,
+                             offered: client.textScaleOffersOff, available: client.textScaleSelectable)
                 .tourTarget(.textSize)
 
             barButton(open: keyboardShown, symbol: "keyboard", label: "Keyboard", width: width,
@@ -371,6 +426,7 @@ struct PortraitStreamScreen: View {
                 .allowsHitTesting(!scaleOpen)
         }
         .animation(.easeOut(duration: 0.16), value: scaleOpen)
+        .animation(.easeOut(duration: 0.18), value: menus)
     }
 
     /// Row 2: the thumbnails, and at the row's end, under Settings, the Menus button while the Mac
@@ -398,11 +454,14 @@ struct PortraitStreamScreen: View {
     // MARK: Shared by both
 
     /// Identical to the landscape stream panel, including the direct-touch overlay: in every layout
-    /// this is the view that holds first responder, so the software keyboard types here. Measured
-    /// as it is drawn: the panel the video is fitted into, which the viewport sends the Mac.
-    private var picturePane: some View {
+    /// this is the view that holds first responder, so the software keyboard types here. `measured`:
+    /// its size is the panel the video is fitted into, which the viewport sends the Mac (the halves);
+    /// a phone sends its layout's picture instead (`phone`), the same rect or, with Larger Picture,
+    /// the room this pane sits at the top of.
+    private func picturePane(measured: Bool) -> some View {
         ZStack {
-            StreamView(client: client)
+            // Scaled and moved by the picture's zoom, inside the clip below.
+            ZoomedStreamView(client: client, zoom: zoom)
             InputOverlay(videoSize: client.videoSize,
                          send: { client.sendInput($0) },
                          setOwnPointer: { client.setOwnPointer($0, from: $1) },
@@ -410,13 +469,18 @@ struct PortraitStreamScreen: View {
                          isKeyboardShown: $keyboardShown,
                          latchedModifiers: latched,
                          onModifiersConsumed: { latched = [] },
-                         sendGesture: { client.sendGesture($0, fingers: $1) })
+                         sendGesture: { client.sendGesture($0, fingers: $1) },
+                         macRepeatsKeys: { KeyTyping.macRepeats(keyRepeat: client.hostKeyRepeat) },
+                         readZoom: { [zoom] in zoom.zoom },
+                         writeZoom: { [zoom] in zoom.set($0) })
         }
         .background(Palette.panel)
+        // A locked Mac: its cover over the picture (LockedMac), under the link's line.
+        .overlay { LockedMacShade(client: client) }
         .overlay(alignment: .top) { LinkLineView(text: linkLine) }
         .clipShape(streamShape)
         .overlay(streamShape.strokeBorder(Color.white.opacity(0.09), lineWidth: 1))
-        .onGeometryChange(for: CGSize.self, of: { $0.size }, action: onPanelSize)
+        .onGeometryChange(for: CGSize.self, of: { $0.size }, action: { if measured { onPanelSize($0) } })
         .tourTarget(.stream)
     }
 
@@ -537,16 +601,31 @@ struct PortraitStreamScreen: View {
     }
 }
 
-/// The phone's five parts at their `PhonePortraitLayout` rects, each proposed exactly its rect, in
-/// the order they are declared (picture, row 1, strip, key row, trackpad), which is the reading
-/// order VoiceOver takes.
-private struct PhoneRows: Layout {
-    let layout: PhonePortraitLayout
+/// Larger Picture's drawer, above row 1, read after it: the accessibility tree orders what is at one
+/// level top to bottom, which would put the whole list before the Apps button that opened it, so a
+/// swipe on from Apps would never reach it. As one container sorted after the rest, VoiceOver reads
+/// row 1, then the list, as under row 1 in every other arrangement.
+private struct AfterRow1: ViewModifier {
+    let active: Bool
 
-    private var rects: [CGRect] { [layout.picture, layout.row1, layout.strip, layout.keys, layout.trackpad] }
+    @ViewBuilder func body(content: Content) -> some View {
+        if active {
+            content.accessibilityElement(children: .contain).accessibilitySortPriority(-1)
+        } else {
+            content
+        }
+    }
+}
+
+/// The phone's parts at their `PhonePortraitLayout` rects, each proposed exactly its rect, in the
+/// order they are declared (picture, row 1, strip, key row, trackpad; no strip with Larger Picture),
+/// which is the reading order VoiceOver takes.
+private struct PhoneRows: Layout {
+    let size: CGSize
+    let rects: [CGRect]
 
     func sizeThatFits(proposal: ProposedViewSize, subviews: Subviews, cache: inout ()) -> CGSize {
-        layout.size
+        size
     }
 
     func placeSubviews(in bounds: CGRect, proposal: ProposedViewSize, subviews: Subviews, cache: inout ()) {
@@ -556,6 +635,59 @@ private struct PhoneRows: Layout {
         }
     }
 }
+
+#if DEBUG
+/// The phone's console lines for the gates (ContentView's contract): `trackpad: 412×304 pt, vertical
+/// span 410.1 pt (Larger Picture, …)` whenever the pad or its span changes, and `keyboard: up, 320 pt
+/// tall, its top at 574 pt in the stream screen; the key row ends 10 pt above it, …` each time the
+/// software keyboard has moved (its frame is the screen's; `origin` is the stream screen's in the
+/// window). Once it has moved (the did-change notification): on fresh simulators the will-change
+/// one went unheard now and then.
+private struct PhoneConsole: ViewModifier {
+    let layout: PhonePortraitLayout
+    let span: CGFloat
+    let video: CGSize
+    let origin: CGPoint
+
+    func body(content: Content) -> some View {
+        content
+            .onChange(of: [layout.trackpad.width, layout.trackpad.height, span], initial: true) { _, _ in
+                print(trackpadLine)
+            }
+            .onReceive(NotificationCenter.default.publisher(for: UIResponder.keyboardDidChangeFrameNotification)) { note in
+                guard let end = note.userInfo?[UIResponder.keyboardFrameEndUserInfoKey] as? CGRect else { return }
+                print(keyboardLine(end))
+            }
+    }
+
+    private var trackpadLine: String {
+        var line = "trackpad: \(Self.points(layout.trackpad.width))×\(Self.points(layout.trackpad.height)) pt, vertical span "
+        line += String(format: "%.1f", span) + " pt"
+        if layout.largerPicture {
+            let pane = layout.pane(video: video)
+            line += " (Larger Picture: the picture \(Self.points(pane.width))×\(Self.points(pane.height))"
+            line += " in a room of \(Self.points(layout.picture.width))×\(Self.points(layout.picture.height)))"
+        }
+        return line
+    }
+
+    private func keyboardLine(_ end: CGRect) -> String {
+        let top: CGFloat = end.minY - origin.y
+        guard end.height > 0, top < layout.size.height else { return "keyboard: down" }
+        let clear: CGFloat = top - layout.keys.maxY
+        var line = "keyboard: up, \(Self.points(end.height)) pt tall, its top at \(Self.points(top)) pt in the stream screen; "
+        line += "the key row ends \(Self.points(abs(clear))) pt " + (clear >= 0 ? "above" : "under") + " it, "
+        line += "row 1 \(Self.points(top - layout.row1.maxY)) pt above it"
+        if let planned = layout.keyboard { line += " (Larger Picture, planned for a keyboard of \(Self.points(planned)) pt)" }
+        return line
+    }
+
+    /// Whole points as whole numbers, anything else to a tenth.
+    private static func points(_ value: CGFloat) -> String {
+        abs(value - value.rounded()) < 0.01 ? "\(Int(value.rounded()))" : String(format: "%.1f", value)
+    }
+}
+#endif
 
 private extension View {
     /// This view with its top-leading corner at `origin`, in a view the size of the whole screen, so
@@ -573,6 +705,20 @@ private extension View {
 }
 
 // MARK: - Key row
+
+/// A key row cap that is held (HeldCap): dimmed while a finger is on it, and its press told as it
+/// begins and ends (the Button's own pressed state), so its key is down on the Mac from the touch to
+/// the release. The Button's action (which also ends a press whose end was not told), the Large Content
+/// Viewer and the accessibility activation are the Button's, as for every other cap.
+private struct HeldCapStyle: ButtonStyle {
+    let pressed: (Bool) -> Void
+
+    func makeBody(configuration: Configuration) -> some View {
+        configuration.label
+            .opacity(configuration.isPressed ? 0.5 : 1)
+            .onChange(of: configuration.isPressed) { _, isPressed in pressed(isPressed) }
+    }
+}
 
 /// One cap in the key row, as data, so each layout can pick its own set and fold it.
 private enum Key {
@@ -604,7 +750,9 @@ private enum Key {
 /// 44 pt caps do not fit across 472 pt, six and then six, 72 pt wide at 500 pt. On a phone
 /// (`.phone`): escape, tab and the four modifiers, six caps across the row; the Keyboard button is
 /// in row 1, and Spotlight is cmd then space on the keyboard (a latched ⌘ turns a typed space into
-/// ⌘Space). Arrows there come from a hardware keyboard.
+/// ⌘Space). Arrows there come from a hardware keyboard. Escape, tab and the arrows are down on the
+/// Mac while a finger holds them, so the Mac repeats them (HeldCap, #162), but for the phone's at the
+/// accessibility text sizes, whose long press shows the cap large (`capsHold`).
 private struct KeyRow: View {
     enum Keys { case full, phone }
 
@@ -617,6 +765,13 @@ private struct KeyRow: View {
     /// Spotlight's panel is its own Mac window, so it only shows up in the stream while the whole
     /// desktop is the source. Anywhere else the key would be a cap that does something invisible.
     let showSpotlight: Bool
+    /// Escape, tab or an arrow held down (HeldCap): its key is down on the Mac until the finger leaves.
+    @State private var heldCap = HeldCap()
+    @Environment(\.dynamicTypeSize) private var dynamicTypeSize
+    /// Whether escape, tab and the arrows are held from the touch to the release: everywhere but where a
+    /// long press shows a cap large (the phone's caps at the accessibility text sizes), so that long press
+    /// stays a look, a tap at its release as before, and never a key held down and repeating on the Mac.
+    private var capsHold: Bool { !(keys == .phone && dynamicTypeSize.isAccessibilitySize) }
 
     private static let all: [Key] = [
         .press("esc", HIDKey.escape, "Escape"),
@@ -663,6 +818,9 @@ private struct KeyRow: View {
             }
         }
         .frame(height: metrics.keyBlockHeight)
+        // Gone from the screen (a turn, the stream's end) with a cap held: no release comes, so it
+        // comes up here.
+        .onDisappear { heldCap.releaseAll().forEach(send) }
         #if DEBUG
         .onAppear(perform: runInputTest)
         #endif
@@ -670,10 +828,11 @@ private struct KeyRow: View {
 
     @ViewBuilder private func key(_ key: Key) -> some View {
         switch key {
-        case .press(let title, _, let label):
-            cap(open: false, label: label, largeContent: title, action: { tap(key) }) { text(title) }
-        case .arrow(let symbol, _, let label):
-            cap(open: false, label: label, action: { tap(key) }) {
+        case .press(let title, let usage, let label):
+            cap(open: false, label: label, largeContent: title, held: capsHold ? { touch(usage, down: $0) } : nil,
+                action: { activate(usage) }) { text(title) }
+        case .arrow(let symbol, let usage, let label):
+            cap(open: false, label: label, held: capsHold ? { touch(usage, down: $0) } : nil, action: { activate(usage) }) {
                 Image(systemName: symbol)
                     .font(.system(size: 17, weight: .semibold))
                     .foregroundStyle(Palette.text)
@@ -697,7 +856,27 @@ private struct KeyRow: View {
         }
     }
 
-    /// What a tap on each cap does.
+    /// A finger landed on escape, tab or an arrow, or left it (HeldCap): its key down with what is
+    /// latched, which is spent, or its key up.
+    private func touch(_ usage: UInt16, down: Bool) {
+        let now = ProcessInfo.processInfo.systemUptime
+        guard down else { heldCap.touchUp(usage, at: now).forEach(send); return }
+        let events = heldCap.touchDown(usage, latched: latched, at: now)
+        events.forEach(send)
+        if HeldCap.spendsLatch(events) { latched = [] }
+    }
+
+    /// Escape's, tab's or an arrow's action: nothing after a finger's touch (its key went down and up
+    /// with it; or its up, if the press's end was not told yet); from VoiceOver, Switch Control, Voice
+    /// Control or a keyboard, or where the caps do not hold (`capsHold`), the whole press, as `tap`.
+    private func activate(_ usage: UInt16) {
+        let events = heldCap.activated(usage, latched: latched, at: ProcessInfo.processInfo.systemUptime)
+        events.forEach(send)
+        if HeldCap.spendsLatch(events) { latched = [] }
+    }
+
+    /// What a tap on each cap does (escape, tab and the arrows: a whole press at once, as an assistive
+    /// technology's activation sends it).
     private func tap(_ key: Key) {
         switch key {
         case .press(_, let usage, _), .arrow(_, let usage, _):
@@ -716,19 +895,27 @@ private struct KeyRow: View {
     // MARK: Caps
 
     /// `largeContent`: the cap's text, which the phone's caps (fixed in size, as the row is) show
-    /// large on a long press at the accessibility text sizes.
+    /// large on a long press at the accessibility text sizes. `held`: told when a finger's press on the
+    /// cap begins and ends (escape, tab and the arrows: HeldCap); the other caps act on their tap alone.
     @ViewBuilder
     private func cap<Content: View>(open: Bool, label: String, largeContent: String? = nil,
+                                    held: ((Bool) -> Void)? = nil,
                                     action: @escaping () -> Void,
                                     @ViewBuilder content: () -> Content) -> some View {
         let shape = RoundedRectangle(cornerRadius: 11, style: .continuous)
-        let button = Button(action: action) {
+        let base = Button(action: action) {
             content()
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
                 .background(shape.fill(open ? Palette.controlOpen : Palette.control))
                 .contentShape(shape)
         }
-        .buttonStyle(.plain)
+        let button = Group {
+            if let held {
+                base.buttonStyle(HeldCapStyle(pressed: held))
+            } else {
+                base.buttonStyle(.plain)
+            }
+        }
         .accessibilityLabel(label)
         if keys == .phone, let largeContent {
             button.accessibilityShowsLargeContentViewer { Text(largeContent) }

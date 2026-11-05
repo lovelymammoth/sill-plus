@@ -14,7 +14,7 @@ M = [
     ("return types \\r", K, 'case 36, 76: return "\\n"', 'case 36, 76: return "\\r"'),
     ("delete types DEL", K, 'case 51: return "\\u{8}"', 'case 51: return "\\u{7F}"'),
     ("private-use characters typed", K, "!(0xF700...0xF8FF).contains(s.value) && ", ""),
-    ("every key goes as text", K, "if let usage = hidUsages[keyCode], let event = forwarded.began(usage, modifiers: modifiers) {", "if false, let usage = hidUsages[keyCode], let event = forwarded.began(usage, modifiers: modifiers) {"),
+    ("every key goes as text", K, "if let usage = hidUsages[keyCode], let event = forwarded.began(usage, modifiers: modifiers, typing: .text) {", "if false, let usage = hidUsages[keyCode], let event = forwarded.began(usage, modifiers: modifiers, typing: .text) {"),
     ("a key's up never goes", K, "        guard let usage = hidUsages[keyCode] else { return nil }\n        return forwarded.ended(usage)", "        return nil"),
     ("a held modifier pressed again goes again", K, "            guard !forwarded.down.contains(usage) else { return [] }\n", ""),
     ("only the released side goes up", K, "return siblings(usage).compactMap { forwarded.ended($0) }", "return [usage].compactMap { forwarded.ended($0) }"),

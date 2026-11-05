@@ -179,6 +179,7 @@ struct SessionView: View {
         VStack(spacing: 0) {
             bar
             if let link = session.hostSettings?.link, link.isBehind { linkLine(link) }
+            if let why = session.lockWhy { lockLine(why) }
             if shortcutsNote { shortcutsLine }
             ZStack {
                 StreamViewRepresentable(session: session)
@@ -261,6 +262,16 @@ struct SessionView: View {
     }
 
     /// The Mac says the link can't carry this quality (kind 16's link report).
+    /// The Mac is locked (upstream 0.6.0: its list says `locked`): its own words for why (LockedMac).
+    private func lockLine(_ why: LockedMac.Why) -> some View {
+        HStack(spacing: 8) {
+            Image(systemName: "lock.fill").foregroundStyle(.secondary)
+            Text(LockedMac.line(mac: session.macName, why: why)).font(.callout)
+            Spacer()
+        }
+        .padding(.horizontal, 10).padding(.vertical, 4)
+    }
+
     private func linkLine(_ link: LinkReport) -> some View {
         HStack(spacing: 8) {
             Image(systemName: "exclamationmark.triangle.fill").foregroundStyle(.orange)
