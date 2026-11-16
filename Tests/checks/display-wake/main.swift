@@ -570,7 +570,7 @@ func isPerson(_ event: W.Event, now: TimeInterval, lastChange: TimeInterval?) ->
     case .connect, .wakingPress: return true
     case .message(let kind, let input):
         switch kind.rawValue {
-        case 7, 15, 25, 28, 47: return true
+        case 7, 15, 25, 28, 40, 47: return true   // 40: sill-plus, a Viewer monitor click
         case 8:
             guard let input else { return false }
             if case .pointer(.move, _, _) = input, let c = lastChange, now >= c, now - c < two { return false }
@@ -579,7 +579,7 @@ func isPerson(_ event: W.Event, now: TimeInterval, lastChange: TimeInterval?) ->
         }
     }
 }
-let otherKinds: [Kind] = (0...255).compactMap { Kind(rawValue: UInt8($0)) }.filter { ![7, 8, 15, 25, 28, 47].contains($0.rawValue) }
+let otherKinds: [Kind] = (0...255).compactMap { Kind(rawValue: UInt8($0)) }.filter { ![7, 8, 15, 25, 28, 40, 47].contains($0.rawValue) }
 var steps = 0, declared = 0, counted = 0, heldOff = 0, clockBacks = 0, streamed = 0, own = 0, ownMoves = 0, changes = 0, wakingPresses = 0
 for session in 0..<20_000 {
     let testHost = rng.below(4) == 0
@@ -624,7 +624,7 @@ for session in 0..<20_000 {
         case ..<24: event = msg(otherKinds[rng.below(otherKinds.count)], rng.below(2) == 0 ? tap : nil)
         case ..<26: event = msg(.input)
         case ..<29: event = msg(.launchApp)
-        case ..<35: event = msg([Kind.windowCommand, .pressMenuItem, .gesture, .nextDisplay][rng.below(4)])
+        case ..<35: event = msg([Kind.windowCommand, .pressMenuItem, .gesture, .nextDisplay, .pickDisplay][rng.below(5)])
         case ..<65: event = msg(.input, rng.below(3) == 0 ? recentred : move)
         case ..<69: event = .wakingPress
         default: event = msg(.input, events[rng.below(events.count)].0)
