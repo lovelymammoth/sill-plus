@@ -5,6 +5,7 @@ sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 import module
 K = "Sources/SillMacClient/MacKeys.swift"
 G = "Sources/SillMacClient/StreamGeometry.swift"
+D = "Sources/SillMacClient/DisplayPicker.swift"
 M = [
     ("A and S swapped", K, "0: 0x04, 11: 0x05, 8: 0x06, 2: 0x07, 14: 0x08, 3: 0x09, 5: 0x0A, 4: 0x0B,", "0: 0x16, 11: 0x05, 8: 0x06, 2: 0x07, 14: 0x08, 3: 0x09, 5: 0x0A, 4: 0x0B,"),
     ("left and right arrows swapped", K, "124: 0x4F,  // Right\n        123: 0x50,  // Left", "124: 0x50,  // Right\n        123: 0x4F,  // Left"),
@@ -25,5 +26,12 @@ M = [
     ("no clamp", G, "        x = min(max(x, 0), 1)\n        y = min(max(y, 0), 1)\n", ""),
     ("scroll sign flipped", G, "return (dx * k / Double(picture.width), dy * k / Double(picture.height))", "return (dx * k / Double(picture.width), -dy * k / Double(picture.height))"),
     ("wheel lines as points", G, "let k = precise ? 1.0 : lineHeight", "let k = 1.0"),
+    ("stop number read from 0", D, "displays[$0 - 1].id", "displays[min($0, displays.count - 1)].id"),
+    ("count never compared", D, "if let n = list.desktopDisplays, n == displays.count {", "if let n = list.desktopDisplays {"),
+    ("0.5.1 hosts' ID ignored", D, "let shown = list.desktopDisplay.flatMap { id in displays.first { Int($0.id) == id }?.id }", "let shown: UInt32? = nil"),
+    ("one stop steps", D, "if let n = list.desktopDisplays, n >= 2 {", "if let n = list.desktopDisplays, n >= 1 {"),
+    ("stepper number unclamped", D, "min(max($0, 1), n)", "$0"),
+    ("names not padded", D, "names + Array(repeating: \"\", count: max(0, n - names.count))", "names"),
+    ("fallback name repeated", D, " || d.name.hasPrefix(\"display \")", ""),
 ]
 sys.exit(0 if module.mutate("mac-client-keys", M, sys.argv[1]) else 1)

@@ -250,5 +250,52 @@ check(StreamGeometry.scrollFraction(dx: 1, dy: 1, precise: true, picture: .zero)
 
 check(StreamGeometry.viewportSize(CGSize(width: 1099.6, height: 0.2)) == (1100, 1), "the viewport rounds, at least a point")
 
+// MARK: The bar's monitor buttons (DisplayPicker), from each kind of host's window list
+
+func listJSON(_ extra: String) -> WindowList {
+    let json = #"{"macName":"Mini","windows":[],"active":{"desktop":{}}"# + extra + "}"
+    return try! JSONDecoder().decode(WindowList.self, from: Data(json.utf8))
+}
+let twoDisplays = #","displays":[{"id":1,"name":"Built-in","width":1512,"height":982,"main":true},{"id":5,"name":"LG HDR 4K","width":2560,"height":1440}]"#
+// This fork's 0.6.2 host: displays beside upstream's stop number.
+check(DisplayPicker.read(listJSON(twoDisplays + #","desktopDisplays":2,"desktopDisplay":2,"desktopDisplayNames":["Built-in","LG HDR 4K"]"#))
+      == .buttons(listJSON(twoDisplays).displays!, shown: 5), "the fork's host: stop 2 is display 5")
+check(DisplayPicker.read(listJSON(twoDisplays + #","desktopDisplays":2,"desktopDisplay":1"#))
+      == .buttons(listJSON(twoDisplays).displays!, shown: 1), "the fork's host: stop 1 is display 1")
+check(DisplayPicker.read(listJSON(twoDisplays + #","desktopDisplays":2,"desktopDisplay":7"#))
+      == .buttons(listJSON(twoDisplays).displays!, shown: nil), "a stop number out of range lights none")
+check(DisplayPicker.read(listJSON(twoDisplays + #","desktopDisplays":3,"desktopDisplay":1"#))
+      == .stepper(count: 3, shown: 1, names: ["", "", ""]), "a count that disagrees with the list: upstream's stepper, never a wrong button")
+// The fork's 0.5.1 hosts: desktopDisplay was a display ID.
+check(DisplayPicker.read(listJSON(twoDisplays + #","desktopDisplay":5"#))
+      == .buttons(listJSON(twoDisplays).displays!, shown: 5), "the 0.5.1 fork host: desktopDisplay 5 is display 5's ID")
+check(DisplayPicker.read(listJSON(twoDisplays + #","desktopDisplay":2"#))
+      == .buttons(listJSON(twoDisplays).displays!, shown: nil), "the 0.5.1 fork host: an ID it does not list lights none")
+// Upstream 0.6.2: no displays, its stops.
+check(DisplayPicker.read(listJSON(#","desktopDisplays":3,"desktopDisplay":2,"desktopDisplayNames":["Built-in","DELL U2723QE",""]"#))
+      == .stepper(count: 3, shown: 2, names: ["Built-in", "DELL U2723QE", ""]), "upstream's stops: the stepper on stop 2")
+check(DisplayPicker.read(listJSON(#","desktopDisplays":2"#)) == .stepper(count: 2, shown: 1, names: ["", ""]),
+      "upstream's stops without a number or names: stop 1, empty names")
+check(DisplayPicker.read(listJSON(#","desktopDisplays":2,"desktopDisplay":9,"desktopDisplayNames":["A","B","C"]"#))
+      == .stepper(count: 2, shown: 2, names: ["A", "B"]), "a number past the count held to it, names cut to the count")
+// Nothing to pick.
+check(DisplayPicker.read(listJSON("")) == .plain, "an older host: the plain Desktop button")
+check(DisplayPicker.read(listJSON(#","desktopDisplays":1"#)) == .plain, "one stop: plain")
+check(DisplayPicker.read(listJSON(#","displays":[{"id":1,"name":"Built-in","width":1512,"height":982}]"#)) == .plain, "one display: plain")
+check(DisplayPicker.read(listJSON(#","locked":true"#)) == .plain, "a locked Mac lists none: plain")
+// The words.
+let lg = DisplayInfo(id: 5, name: "LG HDR 4K", width: 2560, height: 1440)
+check(DisplayPicker.title(lg, index: 1) == "Display 2 · LG HDR 4K", "a named display: \(DisplayPicker.title(lg, index: 1))")
+check(DisplayPicker.title(DisplayInfo(id: 5, name: "display 5", width: 1, height: 1), index: 0) == "Display 1", "upstream's fallback name is not repeated")
+check(DisplayPicker.title(DisplayInfo(id: 5, name: "", width: 1, height: 1), index: 2) == "Display 3", "no name")
+check(DisplayPicker.stepperTitle(shown: 2) == "Desktop 2", "the stepper's label")
+check(DisplayPicker.stepperHelp(count: 3, shown: 2, names: ["A", "DELL", ""], streaming: true) == "Desktop 2 of 3 (DELL). Click for the next display.",
+      "the stepper's help while it streams")
+check(DisplayPicker.stepperHelp(count: 3, shown: 3, names: ["A", "DELL", ""], streaming: false).hasPrefix("Desktop 3 of 3. Stream"),
+      "the stepper's help for an unnamed stop, not streaming")
+// The wire: the field upstream took is an Int stop number, and kind 40's payload is as before.
+check(String(data: Wire.encode(PickDisplay(display: 5)), encoding: .utf8) == #"{"display":5}"#, "kind 40's payload")
+check(StreamMessageKind(rawValue: 40) == .pickDisplay && StreamMessageKind(rawValue: 47) == .nextDisplay, "kinds 40 and 47")
+
 print(failures == 0 ? "mac-client-keys: all \(checks) checks passed" : "mac-client-keys: \(failures) of \(checks) checks FAILED")
 exit(failures == 0 ? 0 : 1)

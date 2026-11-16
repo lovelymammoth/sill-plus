@@ -41,7 +41,8 @@ enum HeadlessCheck {
 
         func stream(_ mac: SavedMac) {
             guard let pin = mac.fingerprintData else { print("headless: the saved record has no pin"); exit(1) }
-            let candidates = RemoteDialPolicy.order(mac.allAddresses, remotePort: mac.remotePort, lastWorked: mac.lastWorked,
+            let candidates = RemoteDialPolicy.order(mac.allAddresses, remembered: SavedMacs.remembered(mac, now: Date().timeIntervalSince1970),
+                                                remotePort: mac.remotePort, lastWorked: mac.lastWorked,
                                                     localIPv4: LocalNetwork.ipv4())
             print("headless: dialing \(mac.name) (\(mac.macID)) at \(candidates.map(\.display).joined(separator: ", "))")
             if wantsInput, !candidates.allSatisfy({ $0.host.hasPrefix("127.") || $0.host == "::1" }) {

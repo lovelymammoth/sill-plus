@@ -28,26 +28,33 @@ Sill's own [tap](https://github.com/Saffsanity/homebrew-sill). Sill for iPhone
 and iPad is free on the [App Store](https://apps.apple.com/app/id6816359860),
 and you can also build it from source (below).
 
+From 0.6.2 on, Sill for Mac updates itself from Settings › General with Update Now, or by
+itself when you turn on Automatically update Sill (off unless you do; it installs
+only while no iPhone or iPad is connected). Either way it checks a new version two
+ways before installing it: Apple's signature and notarization for Sill's
+developer, and the release signed with Sill's own update key.
+
 To try the next version before it ships: Sill for iPhone and iPad has a
 [public beta on TestFlight](https://testflight.apple.com/join/6v7nqyn3), and Sill for Mac
 has [nightly builds](https://github.com/Saffsanity/sill/releases/tag/nightly) on
 GitHub, notarized like a release but not supported. Your devices stay paired
-(a nightly uses the release's identity), and Sill's update check never offers
-a nightly: the release above is the one to use.
+(a nightly uses the release's identity). Sill offers a nightly as an update only
+with Use nightly builds on: otherwise the release above is the one to use.
 
 ## Additions in this fork (sill-plus)
 
 This repository, **lovelymammoth/sill-plus**, is a fork of
 [Saffsanity/sill](https://github.com/Saffsanity/sill). Everything above and
-below describes Sill as upstream ships it. The fork is on upstream 0.6.0 (its
-sound, the locked Mac's rule, key repeat and the rest come with it). On top of
+below describes Sill as upstream ships it. The fork is on upstream 0.6.2 (its
+sound, the locked Mac's rule, key repeat, stepping the Desktop through
+displays and the rest come with it). On top of
 it, the fork adds a second app and a few host features.
 
 ### Downloads
 
 Builds from this fork are on its
 [Releases page](https://github.com/lovelymammoth/sill-plus/releases), tagged
-`v<upstream version>-plus.<n>` (for example `v0.6.0-plus.1`: upstream 0.6.0,
+`v<upstream version>-plus.<n>` (for example `v0.6.2-plus.1`: upstream 0.6.2,
 the fork's first build on it). Each release has:
 
 - **Sill** (`Sill-<version>.dmg` or `.zip`): the host, for the Mac you want to
@@ -62,6 +69,9 @@ for `Sill.app`). macOS treats every new build as a new app, so grant its
 permissions again after each update: Screen Recording and Accessibility for
 Sill (then quit and reopen it), Accessibility for Sill Viewer. Sill's own
 update check reads upstream's releases only, so it never offers this fork's.
+The fork's Sill has no Update Now and no Automatically update Sill: those
+install upstream's signed releases, which would replace the fork's Sill (and
+its hidden screens) with upstream's. Update by hand from this fork's releases.
 
 ### Sill Viewer: another Mac as the device
 
@@ -72,7 +82,8 @@ the same encrypted connection, at home or away through Tailscale.
 
 - **Pick a monitor.** When the host has more than one display, the bar shows a
   button for each ("Display 1 · LG HDR 4K"); the Desktop streams the one you
-  pick.
+  pick. Against upstream's Sill for Mac 0.6.2 (which has no such list) the
+  Desktop button steps to the next display instead, as on the iPhone and iPad.
 - **System shortcuts go to the host.** While the picture has the keyboard,
   ⌘Tab, Spotlight, Mission Control, Spaces, screenshots and the rest act on
   the host, not on the Mac you sit at (Session › Send System Shortcuts to the
@@ -195,6 +206,9 @@ Sill has layouts of its own.
   the inner display; half open, the picture is above the fold with a trackpad
   and keys below; closed, Sill runs on the cover display. Nothing you touch
   sits on the fold.
+- **The Desktop** on a Mac with more than one screen: tap Desktop while it
+  shows to step to the next screen, starting from your main one. The button
+  shows which screen is up.
 - **The menus** of the app you use reach your device too: in the iPad's own
   menu bar on iPadOS 26 or later, and behind the Menus button in Sill's bar.
   Sill for Mac reads each menu from the app as you open it and chooses the
@@ -227,7 +241,9 @@ Sill has layouts of its own.
   Access on. A device away from home gets a quality of its own, Low at Standard
   resolution until you pick another there or in Sill's settings, so a slow
   connection never starts at your home quality; your home quality comes back
-  as soon as a device at home connects. When your device comes home and your
+  as soon as a device at home connects. A device that reaches your Mac through
+  a relay or tunnel running on the Mac itself, such as a userspace Tailscale
+  node or an SSH tunnel, counts as away too. When your device comes home and your
   network lists your Mac, the session moves to your network by itself.
 - **When the link can't keep up**, Sill for Mac notices that it is holding
   frames back and tells your device, which says so over the picture and, in
@@ -269,16 +285,21 @@ Connection are not encrypted, and anything that reaches your Mac there can
 connect without pairing: update it.
 Nightly builds: every night main changes, a notarized Sill for Mac built from it
 goes to the [nightly pre-release](https://github.com/Saffsanity/sill/releases/tag/nightly),
-and Sill for iPhone and iPad to TestFlight's testers. Nobody has tried a nightly
-by hand and it can break; Sill's update check never offers one, and going back
-from a nightly Sill for Mac to the release keeps its settings and paired devices.
+and Sill for iPhone and iPad to TestFlight's testers. A nightly is tested less
+than a release and can break, and going back from a nightly Sill for Mac to the
+release keeps its settings and paired devices.
+Or turn on Use nightly builds in Sill for Mac's Settings › General (0.6.2 or later): Sill then
+offers each night's build too, built and signed by GitHub from Sill's newest code with nobody
+looking at it first. A nightly installs only when you click Update Now; Automatically update Sill
+installs releases only. A nightly is offered the release it led up to once that is out.
 
 ## Tips
 
 Sill is free, with no ads, no tracking and no subscription. If it is useful to
 you, a tip through [GitHub Sponsors](https://github.com/sponsors/Saffsanity)
 helps pay for the developer account. A tip unlocks nothing: every feature is
-free.
+free. Who sponsors Sill, who has contributed, and how to join
+them: [getsill.app/contribute](https://getsill.app/contribute).
 
 ## Building from source
 
@@ -341,7 +362,8 @@ Before a pull request, `Tests/checks/run-all.sh` runs the same pure checks as
 CI, in about five minutes and with no device.
 Contributions are accepted under the project's license. Please report a
 security problem privately, as [SECURITY.md](SECURITY.md) says, not in a
-public issue.
+public issue. These rules, with the sponsors and the contributors, are at
+[getsill.app/contribute](https://getsill.app/contribute).
 
 ## License
 

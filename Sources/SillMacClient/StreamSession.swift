@@ -68,10 +68,9 @@ final class StreamSession: ObservableObject {
     /// The Mac's streaming settings as it last told this connection (kind 16); nil from a Mac that
     /// sends none, which then has no Quality menu here.
     @Published private(set) var hostSettings: HostSettingsState?
-    /// The Mac's own displays (kind 40's list) and the one its Desktop shows; empty from a Mac that
-    /// takes no kind 40 (Sill.app from Noah's releases), whose Desktop is its main display.
-    @Published private(set) var displays: [DisplayInfo] = []
-    @Published private(set) var desktopDisplay: UInt32?
+    /// The Mac's displays as the bar shows them (DisplayPicker): a button each on this fork's Sill (kind 40),
+    /// upstream's "Desktop 2" stepper (kind 47) on upstream's 0.6.2, else the plain Desktop button.
+    @Published private(set) var displayPicker: DisplayPicker = .plain
     /// fn-Esc: this Mac's keyboard, pointer and scrolling stay here until the picture is clicked or
     /// fn-Esc comes again (StreamNSView). Nothing goes to the Mac meanwhile.
     @Published var released = false
@@ -345,8 +344,8 @@ final class StreamSession: ObservableObject {
                 if !list.macName.isEmpty { self.macName = list.macName }
                 self.windows = list.windows
                 self.active = list.active
-                self.displays = list.displays ?? []
-                self.desktopDisplay = list.desktopDisplay
+                self.displayPicker = DisplayPicker.read(list)
+                self.hostTakesPickAsDesktop = list.desktopDisplays != nil && list.displays != nil
                 let live = Set(list.windows.map(\.id))
                 self.thumbnails = self.thumbnails.filter { live.contains($0.key) }
                 // Start on the Desktop, never an empty window, as the iOS client does; at most every
@@ -428,10 +427,22 @@ final class StreamSession: ObservableObject {
     /// Shows `display` as the Desktop (kind 40, only to a Mac that lists its displays), and the
     /// Desktop if something else streams.
     func pickDisplay(_ display: UInt32) {
-        guard displays.contains(where: { $0.id == display }) else { return }
+        guard case .buttons(let displays, _) = displayPicker, displays.contains(where: { $0.id == display }) else { return }
         send(.pickDisplay, Wire.encode(PickDisplay(display: display)))
-        if active != .desktop { select(.desktop) }
+        // This fork's 0.6.2 host brings the Desktop up on the stop itself; its 0.5.1 hosts wanted the pick too.
+        if active != .desktop, !hostTakesPickAsDesktop { select(.desktop) }
     }
+
+    /// The Desktop button against upstream's stops (kind 47): the next display while the Desktop streams,
+    /// else the Desktop on the stop it comes back to, as the iPhone and iPad do.
+    func stepDisplay() {
+        guard case .stepper = displayPicker else { return select(.desktop) }
+        if active == .desktop { send(.nextDisplay, Data()) } else { select(.desktop) }
+    }
+
+    /// Whether kind 40 itself starts the Desktop (this fork's host on upstream's stops, which also sends
+    /// `desktopDisplays`), so the Viewer sends no pick of its own beside it.
+    private var hostTakesPickAsDesktop = false
 
     /// A three- or four-finger gesture from this Mac's trackpad (main thread), as the iOS client
     /// sends it: only to a Mac that takes gestures, and the Desktop first while a window streams, so

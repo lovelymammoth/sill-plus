@@ -19,7 +19,8 @@ right-click › Open the first time). What it does and does not do yet is under 
 1. Install Sill from this fork's Releases page (`Sill-<version>.dmg`), or build it with
    `Scripts/make-app.sh --install --open`, and grant it Screen Recording and Accessibility, as for an
    iPad; then quit and reopen it. Sill for Mac 0.4.0 or later from getsill.app also serves the
-   Viewer, but without monitor picking, hidden screens or lock on disconnect.
+   Viewer, but without hidden screens or lock on disconnect, and without a button per monitor (from
+   upstream 0.6.2 on, one Desktop button steps through the monitors instead).
 2. Leave Settings › Devices › Require pairing on (the default).
 3. For use away from home through Tailscale: install Tailscale on the Mac mini, sign in, and turn on
    Settings › Remote Access in Sill. Sill then listens on its remote door (port 7455 unless you
@@ -97,7 +98,14 @@ freely and goes full screen (⌃⌥⌘F).
   Dock to get this Mac's shortcuts back.
 - **Monitors** *(sill-plus)*: when the Mac mini has more than one display, the bar shows a button for
   each, "Display 1 · LG HDR 4K" (the number keeps two monitors of one model apart). The Desktop
-  streams the one you pick, and switches at once if it is already streaming.
+  streams the one you pick, and switches at once if it is already streaming. Since 0.6.2-plus.1 the
+  buttons are upstream 0.6.2's Desktop stops (`DesktopDisplays`: the main display first, then to its
+  right, one per mirror set, never Sill's own display), kept by the display's UUID across sleeps for the session and 30 s after the last device leaves (a
+  new session starts on the main display, where the 0.5.1 fork host kept the pick for good),
+  the Mac's pointer moved to the monitor picked, and the main display alone while the Mac is
+  locked. Against upstream's Sill 0.6.2, which lists no displays for kind 40, the bar has one button,
+  "Desktop 2", that steps to the next monitor (kind 47) while the Desktop streams, as the iPhone and
+  iPad do. A host from the fork's 0.5.1 releases is read as before (`DisplayPicker`).
 - **Trackpad gestures** *(sill-plus)*: while the picture has control, three- and four-finger swipes
   and pinches go to the Mac mini instead of this Mac, with Session › Send Trackpad Gestures to the
   Mac on (the default; needs Accessibility). Swipe up: Mission Control. Swipe down: App Exposé.
@@ -246,7 +254,12 @@ Built:
 - Statistics to the Mac (its log and menu show this Mac like any device).
 - The host settings panel (kinds 16 and 17): the Quality menu.
 - *(sill-plus)* System shortcuts and trackpad gestures (kind 28) to the Mac; fn-Esc; monitor
-  picking (kind 40, `pickDisplay`); on the host, hidden screens and lock on disconnect.
+  picking (kind 40, `pickDisplay`, on upstream's Desktop stops since 0.6.2-plus.1; kind 47's
+  stepping against upstream's Sill 0.6.2); on the host, hidden screens and lock on disconnect.
+- *(sill-plus, on upstream 0.6.2)* Remembered Tailscale addresses: a VPN address a later list of the
+  Mac's no longer has is still dialed, after the current ones, for 90 days (upstream's
+  `SavedMacs.remembered`, `RemoteDialPolicy.order`'s second group). The fork's Sill has no Update
+  Now (`AppUpdater.forkBuild`).
 - *(sill-plus)* Releases with both apps, signed ad hoc.
 - *(sill-plus, on upstream 0.6.0)* A locked Mac's line (`WindowList.locked`, `LockedMac`'s words); a
   held key that goes as a key repeats at the host's own timing (upstream's KeyRepeat), this Mac's
@@ -257,6 +270,8 @@ Not yet:
 
 - The Mac's menus (kinds 24, 25, 27), the Mac's pointer while it moves (kind 26), Aa (window
   scaling) and a viewport scale.
+- Upstream 0.6.2's off-console view (`Hello.offConsoleView`: the Viewer does not say it shows it,
+  so a Mac switched to another user sends it the locked list, as Sill 0.6.0 did).
 - Upstream 0.6.0's sound (kind 43: the Viewer's hello lists no codec, so the Mac sends it none) and
   the keyframe request after an interrupted picture (kind 44).
 - The clipboard (kind 32): Sill shares it with the iPhone and iPad app, but the Viewer does not

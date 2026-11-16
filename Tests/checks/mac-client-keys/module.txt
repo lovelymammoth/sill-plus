@@ -6,3 +6,4 @@ iOSClient/KeyChords.swift
 iOSClient/TextComposition.swift
 Sources/SillMacClient/MacKeys.swift
 Sources/SillMacClient/StreamGeometry.swift
+Sources/SillMacClient/DisplayPicker.swift

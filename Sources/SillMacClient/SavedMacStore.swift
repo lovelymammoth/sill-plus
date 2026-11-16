@@ -48,7 +48,8 @@ final class SavedMacStore {
     /// A verified kind 18 from a session pinned to `id`'s key: its name, port and addresses.
     func refresh(_ id: String, info: MacInfo, fingerprint: Data) {
         guard let i = list.firstIndex(where: { $0.macID == id }),
-              let next = SavedMacs.refreshed(list[i], info: info, fingerprint: fingerprint, allowLoopback: allowLoopback)
+              let next = SavedMacs.refreshed(list[i], info: info, fingerprint: fingerprint, allowLoopback: allowLoopback,
+                                             now: Date().timeIntervalSince1970)
         else { return }
         list[i] = next
         persist()

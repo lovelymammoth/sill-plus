@@ -208,17 +208,26 @@ struct SessionView: View {
 
     private var bar: some View {
         HStack(spacing: 10) {
-            if session.displays.count > 1 {
-                // One button per monitor of the Mac (kind 40): the Desktop shows the one picked.
-                ForEach(Array(session.displays.enumerated()), id: \.element.id) { i, d in
-                    let on = session.active == .desktop && session.desktopDisplay == d.id
+            switch session.displayPicker {
+            case .buttons(let displays, let shown):
+                // One button per monitor of the Mac (kind 40, this fork's Sill): the Desktop shows the one picked.
+                ForEach(Array(displays.enumerated()), id: \.element.id) { i, d in
+                    let on = session.active == .desktop && shown == d.id
                     Button { session.pickDisplay(d.id) } label: {
-                        Label(displayTitle(d, index: i), systemImage: on ? "display" : "display.2")
+                        Label(DisplayPicker.title(d, index: i), systemImage: on ? "display" : "display.2")
                     }
                     .buttonStyle(.bordered).tint(on ? .accentColor : nil)
                     .help("Stream \(d.name) (\(Int(d.width))×\(Int(d.height)))")
                 }
-            } else {
+            case .stepper(let count, let shown, let names):
+                // Upstream's Sill 0.6.2: one Desktop button that steps through the displays (kind 47).
+                let on = session.active == .desktop
+                Button { session.stepDisplay() } label: {
+                    Label(DisplayPicker.stepperTitle(shown: shown), systemImage: on ? "display" : "menubar.dock.rectangle")
+                }
+                .buttonStyle(.bordered).tint(on ? .accentColor : nil)
+                .help(DisplayPicker.stepperHelp(count: count, shown: shown, names: names, streaming: on))
+            case .plain:
                 Button { session.select(.desktop) } label: { Label("Desktop", systemImage: "menubar.dock.rectangle") }
                     .help("Stream the Mac's whole desktop")
             }
@@ -308,12 +317,6 @@ struct SessionView: View {
         .onReceive(NotificationCenter.default.publisher(for: NSApplication.didBecomeActiveNotification)) { _ in
             if SystemShortcuts.trusted { shortcutsNote = false }
         }
-    }
-
-    /// "Display 1 · LG HDR 4K": the number keeps two monitors of one model apart.
-    private func displayTitle(_ d: DisplayInfo, index: Int) -> String {
-        let n = "Display \(index + 1)"
-        return d.name.hasPrefix("Display ") ? n : "\(n) · \(d.name)"
     }
 
     private var activeTitle: String {

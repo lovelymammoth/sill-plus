@@ -198,7 +198,8 @@ final class AppModel: ObservableObject {
     /// here) in the iOS client's dial order, Tailscale's first.
     func connectRemotely(_ macID: String) {
         guard let identity = requireIdentity(), let mac = store.mac(macID), let pin = mac.fingerprintData else { return }
-        let candidates = RemoteDialPolicy.order(mac.allAddresses, remotePort: mac.remotePort, lastWorked: mac.lastWorked,
+        let candidates = RemoteDialPolicy.order(mac.allAddresses, remembered: SavedMacs.remembered(mac, now: Date().timeIntervalSince1970),
+                                                remotePort: mac.remotePort, lastWorked: mac.lastWorked,
                                                 localIPv4: LocalNetwork.ipv4())
         openSession(mac: mac, pin: pin, identity: identity, target: .addresses(candidates))
     }
