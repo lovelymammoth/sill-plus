@@ -103,6 +103,7 @@ eq(W.userActiveVariable, "SILL_TEST_USER_ACTIVE", "the TEST ONLY variable's name
 
 /// The kinds that are a person at the device, written out: the rule's table must be exactly this.
 let personKinds: [UInt8: W.Activity] = [7: .launch, 8: .input, 15: .windowButton, 25: .menuItem, 28: .gesture,
+                                        40: .nextDisplay,   // sill-plus: Sill Viewer's monitor buttons, a click each
                                         47: .nextDisplay]   // only the Desktop button sends 47 (docs/virtual-desktop-plan.md §1)
 var kinds = 0
 let fresh = W(testHost: false)
@@ -112,7 +113,7 @@ for raw in 0...255 {
     eq(fresh.activity(msg(kind, kind == .input ? tap : nil), at: 100), personKinds[UInt8(raw)], "kind \(raw) (\(kind))")
 }
 // A kind added to the wire fails this until it is decided here (and in the rule).
-eq(kinds, 34, "every kind there is decided (a new kind: say here whether it is a person at the device)")
+eq(kinds, 35, "every kind there is decided (a new kind: say here whether it is a person at the device)")
 for (raw, what) in [(6, "a pick, the device's own Desktop request among them"), (9, "the viewport"), (17, "a settings change"),
                     (21, "show your pairing code"), (27, "a menu fetched"), (32, "the clipboard"),
                     (43, "the Mac's sound, which only a host sends"), (44, "a keyframe request")] as [(UInt8, String)] {

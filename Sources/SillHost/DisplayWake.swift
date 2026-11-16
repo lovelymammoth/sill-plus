@@ -135,6 +135,7 @@ struct DisplayWake {
             case .pressMenuItem: return .menuItem
             case .gesture: return .gesture
             case .nextDisplay: return .nextDisplay
+            case .pickDisplay: return .nextDisplay     // sill-plus: kind 40, a monitor clicked in Sill Viewer
             default: return nil                          // a pick (6), the viewport (9), settings (17), …
             }
         }

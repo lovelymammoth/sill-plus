@@ -42,6 +42,7 @@ MUTANTS = {
     "M22 every other kind counts": ("            default: return nil", "            default: return .input"),
     "M23 input that does not decode counts": ("guard let input else { return nil }", "guard let input else { return .input }"),
     "M24 a gesture said as a menu item": ("            case .gesture: return .gesture\n", "            case .gesture: return .menuItem\n"),
+    "M24e sill-plus: kind 40 does not count": ("            case .pickDisplay: return .nextDisplay     // sill-plus: kind 40, a monitor clicked in Sill Viewer\n", ""),
     "M24b the Desktop's next display does not count (#173's rule)": ("            case .nextDisplay: return .nextDisplay\n", ""),
     "M24c the Desktop's next display said as a gesture": ("            case .nextDisplay: return .nextDisplay\n", "            case .nextDisplay: return .gesture\n"),
     "M24d the next display's words those of a gesture": ('case .nextDisplay: return "stepped the Desktop to the next display"',
